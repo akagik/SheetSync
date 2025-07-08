@@ -1,4 +1,4 @@
-﻿namespace KoheiUtils
+﻿namespace SheetSync
 {
     using UnityEngine;
     using UnityEditor;

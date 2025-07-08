@@ -2,7 +2,7 @@
 using UnityEditor;
 using System.IO;
 
-namespace KoheiUtils
+namespace SheetSync
 {
     public class EnumGenerator
     {

@@ -8,7 +8,7 @@ using System.Linq;
 using System.Reflection;
 using Object = UnityEngine.Object;
 
-namespace KoheiUtils
+namespace SheetSync
 {
     public class AssetsGenerator
     {

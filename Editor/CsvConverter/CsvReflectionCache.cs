@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
-namespace KoheiUtils
+namespace SheetSync
 {
     /// <summary>
     /// 型情報のキャッシュを管理するクラス

@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-namespace KoheiUtils
+namespace SheetSync
 {
     public class ClassGenerator
     {
@@ -118,19 +118,19 @@ namespace KoheiUtils
 
         public static string LoadNoKeyListTableTemplate()
         {
-            TextAsset ta = KoheiUtils.EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_nokey_list_table\" t:TextAsset");
+            TextAsset ta = SheetSync.EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_nokey_list_table\" t:TextAsset");
             return ta.text;
         }
 
         public static string LoadListTableTemplate()
         {
-            TextAsset ta = KoheiUtils.EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_list_table\" t:TextAsset");
+            TextAsset ta = SheetSync.EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_list_table\" t:TextAsset");
             return ta.text;
         }
 
         public static string LoadDictTableTemplate()
         {
-            TextAsset ta = KoheiUtils.EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_dict_table\" t:TextAsset");
+            TextAsset ta = SheetSync.EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_dict_table\" t:TextAsset");
             return ta.text;
         }
 

@@ -1,10 +1,10 @@
 ﻿using System.Collections;
-using KoheiUtils.Reflections;
+using SheetSync.Reflections;
 #if ODIN_INSPECTOR
 using Sirenix.Utilities;
 #endif
 
-namespace KoheiUtils
+namespace SheetSync
 {
     using System;
     using System.Collections.Generic;
@@ -31,7 +31,7 @@ namespace KoheiUtils
         // チェックボックス用
         ConvertSetting[] cachedAllSettings;
 
-        [MenuItem("KoheiUtils/CsvConverter/OpenWindow", false, 0)]
+        [MenuItem("SheetSync/CsvConverter/OpenWindow", false, 0)]
         static public void OpenWindow()
         {
             EditorWindow.GetWindow<CsvConverterWindow>(false, "CsvConverter", true).Show();

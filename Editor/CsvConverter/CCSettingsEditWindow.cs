@@ -1,7 +1,7 @@
 using System.IO;
 using UnityEngine;
 
-namespace KoheiUtils
+namespace SheetSync
 {
     using UnityEditor;
 #if ODIN_INSPECTOR

@@ -7,10 +7,10 @@ using UnityEditor;
 using Sirenix.OdinInspector;
 #endif
 
-namespace KoheiUtils
+namespace SheetSync
 {
     [Serializable]
-    [CreateAssetMenu(menuName = "KoheiUtils/CsvConverter/ConverterSettings")]
+    [CreateAssetMenu(menuName = "SheetSync/CsvConverter/ConverterSettings")]
     public class ConvertSetting : ScriptableObject
     {
         public ConvertSetting Copy()

@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using System.Collections.Generic;
 
-namespace KoheiUtils
+namespace SheetSync
 {
     [Serializable]
     public class CsvData

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
-namespace KoheiUtils
+namespace SheetSync
 {
     [SerializeField]
     public class Field

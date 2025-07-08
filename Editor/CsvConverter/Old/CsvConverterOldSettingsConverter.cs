@@ -2,11 +2,11 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace KoheiUtils
+namespace SheetSync
 {
     public class CsvConverterOldSettingsConverter
     {
-        [MenuItem("KoheiUtils/CsvConverter/Convert Old Settings")]
+        [MenuItem("SheetSync/CsvConverter/Convert Old Settings")]
         public static void ConvertOldSettings()
         {
             string[] settingGUIDArray = AssetDatabase.FindAssets("t:CsvConverterSettings");

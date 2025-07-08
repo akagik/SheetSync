@@ -2,7 +2,7 @@ using System;
 using UnityEditor;
 using UnityEngine;
 
-namespace KoheiUtils
+namespace SheetSync
 {
     public class CreateAssetsJob
     {

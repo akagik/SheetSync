@@ -1,11 +1,11 @@
 using UnityEngine;
 
-namespace KoheiUtils
+namespace SheetSync
 {
     /// <summary>
     /// CsvConverter のグローバルな設定.
     /// </summary>
-    [CreateAssetMenu(menuName = "KoheiUtils/CsvConverter/GlobalSettings")]
+    [CreateAssetMenu(menuName = "SheetSync/CsvConverter/GlobalSettings")]
     public class GlobalCCSettings : ScriptableObject
     {
         [Header("Google Spread Sheet")]

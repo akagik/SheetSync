@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace KoheiUtils
+namespace SheetSync
 {
     public static class CsvLogic
     {
