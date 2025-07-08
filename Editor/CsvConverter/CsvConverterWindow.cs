@@ -1,7 +1,7 @@
 ﻿using System.Collections;
-using SheetSync.Reflections;
+using KoheiUtils;
+using KoheiUtils.Reflections;
 #if ODIN_INSPECTOR
-using Sirenix.Utilities;
 #endif
 
 namespace SheetSync
@@ -11,7 +11,6 @@ namespace SheetSync
     using UnityEngine;
     using UnityEditor;
     using System.IO;
-    using System.Linq;
     using Object = UnityEngine.Object;
 
     public class CsvConverterWindow : EditorWindow

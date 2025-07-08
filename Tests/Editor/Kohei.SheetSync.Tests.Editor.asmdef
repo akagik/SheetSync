@@ -1,8 +1,10 @@
 {
     "name": "Kohei.SheetSync.Tests.Editor",
+    "rootNamespace": "",
     "references": [
-        "GUID:8ccf1a8221e634f81ab304e13e89b698",
-        "GUID:ad9bf89103d8b49d7bbffa248f0928d2"
+        "GUID:607341bd6b96f4d03b7879bd0db0ed00",
+        "GUID:ad9bf89103d8b49d7bbffa248f0928d2",
+        "GUID:8ccf1a8221e634f81ab304e13e89b698"
     ],
     "includePlatforms": [
         "Editor"

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using KoheiUtils;
 
 namespace SheetSync
 {
@@ -118,19 +119,19 @@ namespace SheetSync
 
         public static string LoadNoKeyListTableTemplate()
         {
-            TextAsset ta = SheetSync.EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_nokey_list_table\" t:TextAsset");
+            TextAsset ta = EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_nokey_list_table\" t:TextAsset");
             return ta.text;
         }
 
         public static string LoadListTableTemplate()
         {
-            TextAsset ta = SheetSync.EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_list_table\" t:TextAsset");
+            TextAsset ta = EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_list_table\" t:TextAsset");
             return ta.text;
         }
 
         public static string LoadDictTableTemplate()
         {
-            TextAsset ta = SheetSync.EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_dict_table\" t:TextAsset");
+            TextAsset ta = EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_dict_table\" t:TextAsset");
             return ta.text;
         }
 
