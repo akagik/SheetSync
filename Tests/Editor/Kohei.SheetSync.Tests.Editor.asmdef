@@ -1,5 +1,5 @@
 {
-    "name": "Kohei.KoheiUtils.Tests.Editor",
+    "name": "Kohei.SheetSync.Tests.Editor",
     "references": [
         "GUID:8ccf1a8221e634f81ab304e13e89b698",
         "GUID:ad9bf89103d8b49d7bbffa248f0928d2"

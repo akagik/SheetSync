@@ -1,5 +1,5 @@
 {
-    "name": "Kohei.KoheiUtils.Editor",
+    "name": "Kohei.SheetSync.Editor",
     "references": [
         "GUID:ad9bf89103d8b49d7bbffa248f0928d2"
     ],
