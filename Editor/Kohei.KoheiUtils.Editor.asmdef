@@ -1,0 +1,17 @@
+{
+    "name": "Kohei.KoheiUtils.Editor",
+    "references": [
+        "GUID:ad9bf89103d8b49d7bbffa248f0928d2"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
