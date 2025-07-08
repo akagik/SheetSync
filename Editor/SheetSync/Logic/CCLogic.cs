@@ -1,4 +1,6 @@
-﻿namespace SheetSync
+﻿using KoheiUtils;
+
+namespace SheetSync
 {
     using System;
     using System.Collections.Generic;

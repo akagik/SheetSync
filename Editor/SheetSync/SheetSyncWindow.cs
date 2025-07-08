@@ -1,21 +1,21 @@
 ﻿using System.Collections;
 using KoheiUtils;
 using KoheiUtils.Reflections;
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEditor;
+using System.IO;
+using Object = UnityEngine.Object;
+
 #if ODIN_INSPECTOR
 #endif
 
 namespace SheetSync
 {
-    using System;
-    using System.Collections.Generic;
-    using UnityEngine;
-    using UnityEditor;
-    using System.IO;
-    using Object = UnityEngine.Object;
-
-    public class CsvConverterWindow : EditorWindow
+    public class SheetSyncWindow : EditorWindow
     {
-        private bool    isDownloading;
+        private bool isDownloading;
         private Vector2 scrollPosition;
 
         // 二重に保存しないようにするために導入
@@ -25,31 +25,31 @@ namespace SheetSync
         private static GUIStyle toolbarSearchField;
         private static GUIStyle toolbarSearchFieldCancelButton;
         private static GUIStyle toolbarSearchFieldCancelButtonEmpty;
-        private        string   searchTxt = "";
+        private string searchTxt = "";
 
         // チェックボックス用
         ConvertSetting[] cachedAllSettings;
 
-        [MenuItem("SheetSync/CsvConverter/OpenWindow", false, 0)]
-        static public void OpenWindow()
+        [MenuItem("SheetSync/Open SheetSync", false, 0)]
+        public static void OpenWindow()
         {
-            EditorWindow.GetWindow<CsvConverterWindow>(false, "CsvConverter", true).Show();
+            GetWindow<SheetSyncWindow>(false, "Sheet Sync", true).Show();
         }
 
         void OnFocus()
         {
             // isAll用のデータをキャッシュ
-            var allSettingList       = new List<ConvertSetting>();
+            var allSettingList = new List<ConvertSetting>();
 
             string[] settingGUIDArray = AssetDatabase.FindAssets("t:ConvertSetting");
             for (int i = 0; i < settingGUIDArray.Length; i++)
             {
                 string assetPath = AssetDatabase.GUIDToAssetPath(settingGUIDArray[i]);
-                var    settings  = AssetDatabase.LoadAssetAtPath<ConvertSetting>(assetPath);
+                var settings = AssetDatabase.LoadAssetAtPath<ConvertSetting>(assetPath);
                 allSettingList.Add(settings);
             }
 
-            cachedAllSettings       = allSettingList.ToArray();
+            cachedAllSettings = allSettingList.ToArray();
         }
 
         private void OnGUI()
@@ -74,7 +74,7 @@ namespace SheetSync
 
                 for (int i = 0; i < settings.Length; i++)
                 {
-                    var s = settings[i];
+                    ConvertSetting s = settings[i];
 
                     // 設定が削除されている場合などに対応
                     if (s == null)
@@ -110,10 +110,10 @@ namespace SheetSync
                     if (GUILayout.Button("+", GUILayout.Width(20)))
                     {
                         var copied = s.Copy();
-                        
+
                         var window = CCSettingsEditWindow.OpenWindow();
                         window.SetNewSettings(copied, s.GetDirectoryPath());
-                        
+
                         GUIUtility.ExitGUI();
                     }
 
@@ -226,7 +226,7 @@ namespace SheetSync
                     // ------------------------------
                     {
                         Object outputRef = null;
-                        
+
                         if (s.join)
                         {
                             outputRef = s.targetTable;
@@ -240,7 +240,7 @@ namespace SheetSync
                                 outputRef = AssetDatabase.LoadAssetAtPath<Object>(mainOutputPath);
                             }
                         }
-                        
+
                         EditorGUI.BeginDisabledGroup(true);
                         EditorGUILayout.ObjectField(outputRef, typeof(Object), false, GUILayout.Width(100));
                         EditorGUI.EndDisabledGroup();
@@ -287,15 +287,15 @@ namespace SheetSync
             {
                 yield break;
             }
-            
+
             CreateAssetsJob createAssetsJob = new CreateAssetsJob(s);
 
             object generatedAssets = null;
-            
+
             // Generate Code if type script is not found.
             Type assetType;
             if (s.isEnum || !CsvConvert.TryGetTypeWithError(s.className, out assetType,
-                s.checkFullyQualifiedName, dialog: false))
+                    s.checkFullyQualifiedName, dialog: false))
             {
                 GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
                 GenerateOneCode(s, gSettings);
@@ -325,7 +325,7 @@ namespace SheetSync
                     yield return EditorCoroutineRunner.StartCoroutine(ExecuteImport(afterSettings));
                 }
             }
-            
+
             // AfterImportMethod 処理
             for (int i = 0; i < s.executeMethodAfterImport.Count; i++)
             {
@@ -333,26 +333,26 @@ namespace SheetSync
 
                 if (MethodReflection.TryParse(methodName, out var info))
                 {
-                    info.methodInfo.Invoke(null, new []{ generatedAssets });
+                    info.methodInfo.Invoke(null, new[] { generatedAssets });
                 }
                 else
                 {
                     Debug.LogError($"不正なメソッド名の指定なのでメソッド呼び出しをスキップしました: {methodName}");
                 }
             }
-            
+
             // AfterImport Validation 処理
             if (s.executeValidationAfterImport.Count > 0)
             {
                 bool validationOk = true;
-                
+
                 for (int i = 0; i < s.executeValidationAfterImport.Count; i++)
                 {
                     var methodName = s.executeValidationAfterImport[i];
 
                     if (MethodReflection.TryParse(methodName, out var info))
                     {
-                        object resultObj = info.methodInfo.Invoke(null, new []{ generatedAssets });
+                        object resultObj = info.methodInfo.Invoke(null, new[] { generatedAssets });
 
                         if (resultObj is bool resultBool)
                         {
@@ -382,12 +382,12 @@ namespace SheetSync
                 }
             }
         }
-        
+
         public static IEnumerator ExecuteDownload(ConvertSetting s)
         {
             GSPluginSettings.Sheet sheet = new GSPluginSettings.Sheet();
             sheet.sheetId = s.sheetID;
-            sheet.gid     = s.gid;
+            sheet.gid = s.gid;
 
             GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
 
@@ -418,13 +418,13 @@ namespace SheetSync
 
             string title = "Google Spreadsheet Loader";
             yield return EditorCoroutineRunner.StartCoroutineWithUI(GSEditorWindow.Download(sheet, s.GetDirectoryPath()), title, true);
-            
+
             // 成功判定を行う.
             if (GSEditorWindow.previousDownloadSuccess)
             {
                 downloadSuccess = true;
             }
-            
+
             yield break;
         }
 
@@ -436,10 +436,10 @@ namespace SheetSync
             {
                 foreach (ConvertSetting s in setting)
                 {
-                    show_progress(s.className, (float) i / setting.Length, i, setting.Length);
+                    show_progress(s.className, (float)i / setting.Length, i, setting.Length);
                     CsvConvert.GenerateCode(s, gSettings);
                     i++;
-                    show_progress(s.className, (float) i / setting.Length, i, setting.Length);
+                    show_progress(s.className, (float)i / setting.Length, i, setting.Length);
                 }
             }
             catch (Exception e)
@@ -510,14 +510,14 @@ namespace SheetSync
             rect.x += 4f;
             rect.y += 4f;
 
-            return (string) ToolbarSearchField(rect, text);
+            return (string)ToolbarSearchField(rect, text);
         }
 
         private static string ToolbarSearchField(Rect position, string text)
         {
             Rect rect = position;
-            rect.x     += position.width;
-            rect.width =  14f;
+            rect.x += position.width;
+            rect.width = 14f;
 
             if (toolbarSearchField == null)
             {
@@ -555,7 +555,7 @@ namespace SheetSync
 
                 if (GUI.Button(rect, GUIContent.none, toolbarSearchFieldCancelButton))
                 {
-                    text                       = "";
+                    text = "";
                     GUIUtility.keyboardControl = 0;
                 }
             }

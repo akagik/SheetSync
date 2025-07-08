@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using KoheiUtils;
 using Object = UnityEngine.Object;
 
 namespace SheetSync
@@ -327,11 +328,11 @@ namespace SheetSync
 
                     if (sValue == "")
                     {
-                        if ((gSettings.logType & ResultType.EmptyCell) != 0)
-                        {
-                            Debug.LogWarningFormat("{0} {1}行{2}列目: 空の値があります: {3}=\"{4}\"", setting.className, line,
-                                j + 1, info.Name, sValue);
-                        }
+                        // if ((gSettings.logType & ResultType.EmptyCell) != 0)
+                        // {
+                        //     Debug.LogWarningFormat("{0} {1}行{2}列目: 空の値があります: {3}=\"{4}\"", setting.className, line,
+                        //         j + 1, info.Name, sValue);
+                        // }
                     }
                     else
                     {
@@ -345,11 +346,11 @@ namespace SheetSync
 
                         if (value == null)
                         {
-                            if ((gSettings.logType & ResultType.ConvertFails) != 0)
-                            {
-                                Debug.LogErrorFormat("{0} {1}行{2}列目: 変換に失敗しました: {3}=\"{4}\"", setting.className, line,
-                                    j + 1, info.Name, sValue);
-                            }
+                            // if ((gSettings.logType & ResultType.ConvertFails) != 0)
+                            // {
+                            //     Debug.LogErrorFormat("{0} {1}行{2}列目: 変換に失敗しました: {3}=\"{4}\"", setting.className, line,
+                            //         j + 1, info.Name, sValue);
+                            // }
                         }
                     }
                 }

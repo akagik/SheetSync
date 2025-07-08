@@ -1,4 +1,5 @@
 using System;
+using KoheiUtils;
 using UnityEditor;
 using UnityEngine;
 
@@ -7,7 +8,7 @@ namespace SheetSync
     public class CreateAssetsJob
     {
         public ConvertSetting settings;
-        public string settingPath => settings.GetDirectoryPath();
+        // public string settingPath => settings.GetDirectoryPath();
 
         public CreateAssetsJob(ConvertSetting settings)
         {
