@@ -1,568 +1,414 @@
-﻿using System.Collections;
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-using System.IO;
-using KoheiUtils;
-using KoheiUtils.Reflections;
-using Object = UnityEngine.Object;
+using SheetSync.Editor.ViewModels;
 
-#if ODIN_INSPECTOR
-#endif
-
-namespace SheetSync
+namespace SheetSync.Editor.Windows
 {
+    /// <summary>
+    /// リファクタリングされた SheetSyncWindow
+    /// 
+    /// MVVM パターンに基づいた SheetSync のメインウィンドウ実装です。
+    /// UIロジックのみを担当し、すべてのビジネスロジックは ViewModel に委譲します。
+    /// 
+    /// 主な責任:
+    /// - Unity ImGUI を使用したUIの描画
+    /// - ユーザー入力の受け取りとViewModelへの伝達
+    /// - ViewModel からのデータ変更通知の受信とUI更新
+    /// - Unity エディタのライフサイクルイベントのハンドリング
+    /// 
+    /// 設計上の特徴:
+    /// - View はViewModel のパブリックインターフェースのみに依存
+    /// - 将来の UIToolkit への移行が容易な構造
+    /// - テスタブルなViewModelとUIの完全な分離
+    /// - Unity バージョンに応じたスタイル名の調整
+    /// </summary>
     public class SheetSyncWindow : EditorWindow
     {
-        private bool isDownloading;
-        private Vector2 scrollPosition;
-
-        // 二重に保存しないようにするために導入
-        private string savedGUID;
-
-        // 検索ボックス用
-        private static GUIStyle toolbarSearchField;
-        private static GUIStyle toolbarSearchFieldCancelButton;
-        private static GUIStyle toolbarSearchFieldCancelButtonEmpty;
-        private string searchTxt = "";
-
-        // チェックボックス用
-        SheetSync.Models.ConvertSetting[] cachedAllSettings;
-
+        private SheetSyncViewModel _viewModel;
+        private Vector2 _scrollPosition;
+        
+        // 検索ボックス用スタイル
+        private static GUIStyle _toolbarSearchField;
+        private static GUIStyle _toolbarSearchFieldCancelButton;
+        private static GUIStyle _toolbarSearchFieldCancelButtonEmpty;
+        
+        /// <summary>
+        /// SheetSync ウィンドウを開きます
+        /// </summary>
         [MenuItem("SheetSync/Open SheetSync", false, 0)]
         public static void OpenWindow()
         {
             GetWindow<SheetSyncWindow>(false, "Sheet Sync", true).Show();
         }
-
-        void OnFocus()
+        
+        private void OnEnable()
         {
-            // isAll用のデータをキャッシュ
-            var allSettingList = new List<SheetSync.Models.ConvertSetting>();
-
-            string[] settingGUIDArray = AssetDatabase.FindAssets("t:ConvertSetting");
-            for (int i = 0; i < settingGUIDArray.Length; i++)
-            {
-                string assetPath = AssetDatabase.GUIDToAssetPath(settingGUIDArray[i]);
-                var settings = AssetDatabase.LoadAssetAtPath<SheetSync.Models.ConvertSetting>(assetPath);
-                allSettingList.Add(settings);
-            }
-
-            cachedAllSettings = allSettingList.ToArray();
+            _viewModel = new SheetSyncViewModel();
+            _viewModel.PropertyChanged += Repaint;
         }
-
+        
+        private void OnDisable()
+        {
+            if (_viewModel != null)
+            {
+                _viewModel.PropertyChanged -= Repaint;
+            }
+        }
+        
+        private void OnFocus()
+        {
+            _viewModel?.RefreshCommand.Execute();
+        }
+        
         private void OnGUI()
         {
+            if (_viewModel == null)
+            {
+                _viewModel = new SheetSyncViewModel();
+                _viewModel.PropertyChanged += Repaint;
+            }
+            
             GUILayout.Space(6f);
-            SheetSync.Models.ConvertSetting[] settings = null;
-
-            if (cachedAllSettings != null)
-            {
-                settings = cachedAllSettings;
-            }
-
-            // 検索ボックスを表示
+            
+            // 検索ボックス
+            DrawSearchField();
+            
+            // メインコンテンツ
+            DrawMainContent();
+            
+            // ボトムバー
+            DrawBottomBar();
+        }
+        
+        /// <summary>
+        /// 検索フィールドを描画します
+        /// </summary>
+        /// <remarks>
+        /// Unity 標準の検索フィールドスタイルを使用し、
+        /// 入力値の変更をViewModelに伝えます。
+        /// </remarks>
+        private void DrawSearchField()
+        {
             GUILayout.BeginHorizontal();
-            searchTxt = SearchField(searchTxt);
-            searchTxt = searchTxt.ToLower();
+            
+            var newSearchText = SearchField(_viewModel.SearchText);
+            if (newSearchText != _viewModel.SearchText)
+            {
+                _viewModel.SearchText = newSearchText;
+            }
+            
             GUILayout.EndHorizontal();
-
-            if (settings != null)
+        }
+        
+        /// <summary>
+        /// メインコンテンツエリアを描画します
+        /// </summary>
+        /// <remarks>
+        /// スクロール可能なエリア内に ConvertSetting のリストを表示します。
+        /// 検索テキストによるフィルタリングが適用されます。
+        /// </remarks>
+        private void DrawMainContent()
+        {
+            _scrollPosition = GUILayout.BeginScrollView(_scrollPosition);
+            
+            foreach (var itemViewModel in _viewModel.FilteredItems)
             {
-                scrollPosition = GUILayout.BeginScrollView(scrollPosition);
-
-                for (int i = 0; i < settings.Length; i++)
+                DrawSettingItem(itemViewModel);
+            }
+            
+            GUILayout.EndScrollView();
+        }
+        
+        /// <summary>
+        /// 個別の ConvertSetting アイテムを描画します
+        /// </summary>
+        /// <param name="itemViewModel">描画するアイテムの ViewModel</param>
+        /// <remarks>
+        /// 各アイテムはボックス内に表示され、設定に応じて
+        /// 異なるボタンやステータスが表示されます。
+        /// </remarks>
+        private void DrawSettingItem(ConvertSettingItemViewModel itemViewModel)
+        {
+            GUILayout.BeginHorizontal("box");
+            
+            #if ODIN_INSPECTOR
+            // 複製ボタン
+            if (itemViewModel.DuplicateCommand.CanExecute())
+            {
+                if (GUILayout.Button("+", GUILayout.Width(20)))
                 {
-                    SheetSync.Models.ConvertSetting s = settings[i];
-
-                    // 設定が削除されている場合などに対応
-                    if (s == null)
-                    {
-                        continue;
-                    }
-
-                    // 検索ワードチェック
-                    if (!string.IsNullOrEmpty(searchTxt))
-                    {
-                        if (s.tableGenerate)
-                        {
-                            if (!searchTxt.IsSubsequence(s.tableAssetName.ToLower()))
-                            {
-                                continue;
-                            }
-                        }
-                        else
-                        {
-                            if (!searchTxt.IsSubsequence(s.className.ToLower()))
-                            {
-                                continue;
-                            }
-                        }
-                    }
-
-                    GUILayout.BeginHorizontal("box");
-
-#if ODIN_INSPECTOR
-                    // ------------------------------
-                    // 設定を複製ボタン.
-                    // ------------------------------
-                    if (GUILayout.Button("+", GUILayout.Width(20)))
-                    {
-                        var copied = s.Copy();
-
-                        var window = CCSettingsEditWindow.OpenWindow();
-                        window.SetNewSettings(copied, s.GetDirectoryPath());
-
-                        GUIUtility.ExitGUI();
-                    }
-
-                    // ------------------------------
-                    // 設定を編集ボタン.
-                    // ------------------------------
-                    var edit = EditorGUIUtility.Load("editicon.sml") as Texture2D;
-                    if (GUILayout.Button(edit, GUILayout.Width(20)))
-                    {
-                        var window = CCSettingsEditWindow.OpenWindow();
-                        window.SetSettings(s);
-                        GUIUtility.ExitGUI();
-                    }
-#endif
-
-                    // ------------------------------
-                    // テーブル名 (enum の場合は enum名) を表示.
-                    // クリックして、設定ファイルに飛べるようにする.
-                    // ------------------------------
-                    if (s.tableGenerate)
-                    {
-                        if (GUILayout.Button(s.tableAssetName, "Label"))
-                        {
-                            EditorGUIUtility.PingObject(s.GetInstanceID());
-                            GUIUtility.ExitGUI();
-                        }
-                    }
-                    else
-                    {
-                        if (GUILayout.Button(s.className, "Label"))
-                        {
-                            EditorGUIUtility.PingObject(s.GetInstanceID());
-                            GUIUtility.ExitGUI();
-                        }
-                    }
-
-                    // ------------------------------
-                    // GS Plugin 使う場合のボタン.
-                    // 
-                    // Import ボタン
-                    // Open ボタン
-                    // ------------------------------
-                    if (s.useGSPlugin)
-                    {
-                        if (GUILayout.Button("Import", GUILayout.Width(110)))
-                        {
-                            EditorCoroutineRunner.StartCoroutine(ExecuteImport(s));
-                            GUIUtility.ExitGUI();
-                        }
-
-                        // GS Plugin を使う場合は Open ボタンを用意する.
-                        if (s.useGSPlugin)
-                        {
-                            if (GUILayout.Button("Open", GUILayout.Width(80)) && !isDownloading)
-                            {
-                                GSUtils.OpenURL(s.sheetID, s.gid);
-                                GUIUtility.ExitGUI();
-                            }
-                        }
-
-
-                        if (s.verboseBtn)
-                        {
-                            if (GUILayout.Button("DownLoad", GUILayout.Width(110)))
-                            {
-                                EditorCoroutineRunner.StartCoroutine(ExecuteDownload(s));
-                                GUIUtility.ExitGUI();
-                            }
-                        }
-                    }
-
-                    // ------------------------------
-                    // コード生成ボタン.
-                    // v0.1.2 からは Import に置き換え.
-                    // ------------------------------
-                    if (s.verboseBtn)
-                    {
-                        GUI.enabled = s.canGenerateCode;
-                        if (GUILayout.Button("Generate Code", GUILayout.Width(110)) && !isDownloading)
-                        {
-                            SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
-                            isDownloading = true;
-                            GenerateOneCode(s, gSettings);
-                            isDownloading = false;
-
-                            GUIUtility.ExitGUI();
-                        }
-                    }
-
-                    // ------------------------------
-                    // アセット生成ボタン.
-                    // v0.1.2 からは Import に置き換え.
-                    // ------------------------------
-                    if (s.verboseBtn)
-                    {
-                        GUI.enabled = s.canCreateAsset;
-
-                        if (GUILayout.Button("Create Assets", GUILayout.Width(110)) && !isDownloading)
-                        {
-                            CreateAssetsJob createAssetsJob = new CreateAssetsJob(s);
-                            createAssetsJob.Execute();
-                            GUIUtility.ExitGUI();
-                        }
-                    }
-
-                    GUI.enabled = true;
-
-                    // ------------------------------
-                    // 成果物参照まど.
-                    // ------------------------------
-                    {
-                        Object outputRef = null;
-
-                        if (s.join)
-                        {
-                            outputRef = s.targetTable;
-                        }
-                        else
-                        {
-                            string mainOutputPath = CCLogic.GetMainOutputPath(s);
-
-                            if (mainOutputPath != null)
-                            {
-                                outputRef = AssetDatabase.LoadAssetAtPath<Object>(mainOutputPath);
-                            }
-                        }
-
-                        EditorGUI.BeginDisabledGroup(true);
-                        EditorGUILayout.ObjectField(outputRef, typeof(Object), false, GUILayout.Width(100));
-                        EditorGUI.EndDisabledGroup();
-                    }
-
-                    GUILayout.EndHorizontal();
-                }
-
-                GUILayout.EndScrollView();
-
-                GUILayout.BeginHorizontal("box");
-                if (GUILayout.Button("Generate All Codes", "LargeButtonMid") && !isDownloading)
-                {
-                    SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
-                    isDownloading = true;
-                    GenerateAllCode(settings, gSettings);
-                    isDownloading = false;
-
+                    itemViewModel.DuplicateCommand.Execute();
                     GUIUtility.ExitGUI();
                 }
-
-                if (GUILayout.Button("Create All Assets", "LargeButtonMid") && !isDownloading)
+            }
+            
+            // 編集ボタン
+            if (itemViewModel.EditCommand.CanExecute())
+            {
+                var editIcon = EditorGUIUtility.Load("editicon.sml") as Texture2D;
+                if (GUILayout.Button(editIcon, GUILayout.Width(20)))
                 {
-                    SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
-                    isDownloading = true;
-                    CreateAllAssets(settings, gSettings);
-                    isDownloading = false;
-
+                    itemViewModel.EditCommand.Execute();
                     GUIUtility.ExitGUI();
                 }
-
-                GUILayout.EndHorizontal();
+            }
+            #endif
+            
+            // 設定名（クリック可能）
+            if (GUILayout.Button(itemViewModel.DisplayName, "Label"))
+            {
+                itemViewModel.PingCommand.Execute();
+                GUIUtility.ExitGUI();
+            }
+            
+            // GSPlugin 関連ボタン
+            if (itemViewModel.Model.UseGSPlugin)
+            {
+                DrawGSPluginButtons(itemViewModel);
+            }
+            
+            // Verbose モードボタン
+            if (itemViewModel.Model.IsVerboseMode)
+            {
+                DrawVerboseButtons(itemViewModel);
+            }
+            
+            // 出力参照
+            DrawOutputReference(itemViewModel);
+            
+            GUILayout.EndHorizontal();
+            
+            // ステータスメッセージ
+            if (!string.IsNullOrEmpty(itemViewModel.StatusMessage))
+            {
+                EditorGUILayout.HelpBox(itemViewModel.StatusMessage, MessageType.Info);
             }
         }
-
-        static bool downloadSuccess;
-
-        public static IEnumerator ExecuteImport(SheetSync.Models.ConvertSetting s)
+        
+        /// <summary>
+        /// GSPlugin 関連のボタンを描画します
+        /// </summary>
+        /// <param name="itemViewModel">対象アイテムの ViewModel</param>
+        /// <remarks>
+        /// Import、Open、Download などの Google スプレッドシート
+        /// 関連の操作ボタンを表示します。
+        /// </remarks>
+        private void DrawGSPluginButtons(ConvertSettingItemViewModel itemViewModel)
         {
-            downloadSuccess = false;
-            yield return EditorCoroutineRunner.StartCoroutine(ExecuteDownload(s));
-
-            if (!downloadSuccess)
+            GUI.enabled = !itemViewModel.IsProcessing && !_viewModel.IsProcessing;
+            
+            if (GUILayout.Button("Import", GUILayout.Width(110)))
             {
-                yield break;
+                _viewModel.ExecuteImport(itemViewModel);
+                GUIUtility.ExitGUI();
             }
-
-            CreateAssetsJob createAssetsJob = new CreateAssetsJob(s);
-
-            object generatedAssets = null;
-
-            // Generate Code if type script is not found.
-            Type assetType;
-            if (s.isEnum || !CsvConvert.TryGetTypeWithError(s.className, out assetType,
-                    s.checkFullyQualifiedName, dialog: false))
+            
+            if (itemViewModel.OpenSpreadsheetCommand.CanExecute())
             {
-                SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
-                GenerateOneCode(s, gSettings);
-
-                if (!s.isEnum)
+                if (GUILayout.Button("Open", GUILayout.Width(80)))
                 {
-                    EditorUtility.DisplayDialog(
-                        "Code Generated",
-                        "Please reimport for creating assets after compiling",
-                        "ok"
-                    );
+                    itemViewModel.OpenSpreadsheetCommand.Execute();
+                    GUIUtility.ExitGUI();
                 }
             }
-            // Create Assets
-            else
+            
+            if (itemViewModel.Model.IsVerboseMode)
             {
-                generatedAssets = createAssetsJob.Execute();
-            }
-
-            // AfterImport 処理
-            for (int i = 0; i < s.executeAfterImport.Count; i++)
-            {
-                var afterSettings = s.executeAfterImport[i];
-
-                if (afterSettings != null)
+                if (GUILayout.Button("Download", GUILayout.Width(110)))
                 {
-                    yield return EditorCoroutineRunner.StartCoroutine(ExecuteImport(afterSettings));
+                    _viewModel.ExecuteDownload(itemViewModel);
+                    GUIUtility.ExitGUI();
                 }
             }
-
-            // AfterImportMethod 処理
-            for (int i = 0; i < s.executeMethodAfterImport.Count; i++)
-            {
-                var methodName = s.executeMethodAfterImport[i];
-
-                if (MethodReflection.TryParse(methodName, out var info))
-                {
-                    info.methodInfo.Invoke(null, new[] { generatedAssets });
-                }
-                else
-                {
-                    Debug.LogError($"不正なメソッド名の指定なのでメソッド呼び出しをスキップしました: {methodName}");
-                }
-            }
-
-            // AfterImport Validation 処理
-            if (s.executeValidationAfterImport.Count > 0)
-            {
-                bool validationOk = true;
-
-                for (int i = 0; i < s.executeValidationAfterImport.Count; i++)
-                {
-                    var methodName = s.executeValidationAfterImport[i];
-
-                    if (MethodReflection.TryParse(methodName, out var info))
-                    {
-                        object resultObj = info.methodInfo.Invoke(null, new[] { generatedAssets });
-
-                        if (resultObj is bool resultBool)
-                        {
-                            validationOk &= resultBool;
-                        }
-                        else
-                        {
-                            validationOk = false;
-                            Debug.LogError($"Validation Method は bool 値を返す必要があります: {methodName}");
-                        }
-                    }
-                    else
-                    {
-                        validationOk = false;
-                        Debug.LogError($"不正なメソッド名の指定なので Validation メソッド呼び出しをスキップしました: {methodName}");
-                    }
-                }
-
-                if (validationOk)
-                {
-                    Debug.Log("<color=green>Validation Success</color>");
-                }
-                else
-                {
-                    Debug.LogError("<color=red>Validation Fails...</color>");
-                    Debug.LogError("Validation に失敗しました。テーブルを見直して正しいデータに修正してください。");
-                }
-            }
+            
+            GUI.enabled = true;
         }
-
-        public static IEnumerator ExecuteDownload(SheetSync.Models.ConvertSetting s)
+        
+        /// <summary>
+        /// Verbose モード用のボタンを描画します
+        /// </summary>
+        /// <param name="itemViewModel">対象アイテムの ViewModel</param>
+        /// <remarks>
+        /// コード生成やアセット作成などの詳細モード用
+        /// 操作ボタンを表示します。
+        /// </remarks>
+        private void DrawVerboseButtons(ConvertSettingItemViewModel itemViewModel)
         {
-            GSPluginSettings.Sheet sheet = new GSPluginSettings.Sheet();
-            sheet.sheetId = s.sheetID;
-            sheet.gid = s.gid;
-
-            SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
-
-            string csvPath = s.GetCsvPath(gSettings);
-            if (string.IsNullOrWhiteSpace(csvPath))
+            GUI.enabled = itemViewModel.Model.CanGenerateCode && !itemViewModel.IsProcessing && !_viewModel.IsProcessing;
+            
+            if (GUILayout.Button("Generate Code", GUILayout.Width(110)))
             {
-                Debug.LogError("unexpected downloadPath: " + csvPath);
-                downloadSuccess = false;
-                yield break;
+                _viewModel.GenerateCode(itemViewModel);
+                GUIUtility.ExitGUI();
             }
-
-            string absolutePath = CCLogic.GetFilePathRelativesToAssets(s.GetDirectoryPath(), csvPath);
-
-            // 先頭の Assets を削除する
-            if (absolutePath.StartsWith("Assets" + Path.DirectorySeparatorChar))
+            
+            GUI.enabled = itemViewModel.Model.CanCreateAsset && !itemViewModel.IsProcessing && !_viewModel.IsProcessing;
+            
+            if (GUILayout.Button("Create Assets", GUILayout.Width(110)))
             {
-                sheet.targetPath = absolutePath.Substring(6);
+                _viewModel.CreateAssets(itemViewModel);
+                GUIUtility.ExitGUI();
             }
-            else
-            {
-                Debug.LogError("unexpected downloadPath: " + absolutePath);
-                downloadSuccess = false;
-                yield break;
-            }
-
-            sheet.isCsv = true;
-            sheet.verbose = false;
-
-            string title = "Google Spreadsheet Loader";
-            yield return EditorCoroutineRunner.StartCoroutineWithUI(GSEditorWindow.Download(sheet, s.GetDirectoryPath()), title, true);
-
-            // 成功判定を行う.
-            if (GSEditorWindow.previousDownloadSuccess)
-            {
-                downloadSuccess = true;
-            }
-
-            yield break;
+            
+            GUI.enabled = true;
         }
-
-        public static void GenerateAllCode(SheetSync.Models.ConvertSetting[] setting, SheetSync.Models.GlobalCCSettings gSettings)
+        
+        /// <summary>
+        /// 出力先アセットの参照フィールドを描画します
+        /// </summary>
+        /// <param name="itemViewModel">対象アイテムの ViewModel</param>
+        /// <remarks>
+        /// 読み取り専用の ObjectField として表示し、
+        /// 生成されたアセットへの参照を表示します。
+        /// </remarks>
+        private void DrawOutputReference(ConvertSettingItemViewModel itemViewModel)
         {
-            int i = 0;
-
-            try
-            {
-                foreach (SheetSync.Models.ConvertSetting s in setting)
-                {
-                    show_progress(s.className, (float)i / setting.Length, i, setting.Length);
-                    CsvConvert.GenerateCode(s, gSettings);
-                    i++;
-                    show_progress(s.className, (float)i / setting.Length, i, setting.Length);
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogException(e);
-            }
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            EditorUtility.ClearProgressBar();
+            EditorGUI.BeginDisabledGroup(true);
+            EditorGUILayout.ObjectField(
+                itemViewModel.Model.OutputReference, 
+                typeof(UnityEngine.Object), 
+                false, 
+                GUILayout.Width(100)
+            );
+            EditorGUI.EndDisabledGroup();
         }
-
-        public static void CreateAllAssets(SheetSync.Models.ConvertSetting[] setting, SheetSync.Models.GlobalCCSettings gSettings)
+        
+        /// <summary>
+        /// ウィンドウ下部のボタンバーを描画します
+        /// </summary>
+        /// <remarks>
+        /// すべての ConvertSetting に対して一括操作を行う
+        /// グローバルアクションボタンを表示します。
+        /// </remarks>
+        private void DrawBottomBar()
         {
-            try
+            GUILayout.BeginHorizontal("box");
+            
+            GUI.enabled = _viewModel.GenerateAllCodeCommand.CanExecute();
+            if (GUILayout.Button("Generate All Codes", "LargeButtonMid"))
             {
-                for (int i = 0; i < setting.Length; i++)
-                {
-                    CsvConvert.CreateAssets(setting[i], gSettings);
-                }
+                _viewModel.GenerateAllCodeCommand.Execute();
+                GUIUtility.ExitGUI();
             }
-            catch (Exception e)
+            
+            GUI.enabled = _viewModel.CreateAllAssetsCommand.CanExecute();
+            if (GUILayout.Button("Create All Assets", "LargeButtonMid"))
             {
-                Debug.LogException(e);
+                _viewModel.CreateAllAssetsCommand.Execute();
+                GUIUtility.ExitGUI();
             }
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            EditorUtility.ClearProgressBar();
+            
+            GUI.enabled = true;
+            
+            GUILayout.EndHorizontal();
         }
-
-        public static void GenerateOneCode(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings)
-        {
-            show_progress(s.className, 0, 0, 1);
-
-            try
-            {
-                CsvConvert.GenerateCode(s, gSettings);
-            }
-            catch (Exception e)
-            {
-                Debug.LogException(e);
-            }
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            show_progress(s.className, 1, 1, 1);
-
-            EditorUtility.ClearProgressBar();
-        }
-
-        private static void show_progress(string name, float progress, int i, int total)
-        {
-            EditorUtility.DisplayProgressBar("Progress", progress_msg(name, i, total), progress);
-        }
-
-        private static string progress_msg(string name, int i, int total)
-        {
-            return string.Format("Creating {0} ({1}/{2})", name, i, total);
-        }
-
-        private static string SearchField(string text)
+        
+        #region Search Field Implementation
+        
+        /// <summary>
+        /// 検索フィールドの実装
+        /// </summary>
+        /// <remarks>
+        /// Unity 標準のツールバー検索フィールドスタイルを再現し、
+        /// クリアボタンやプレースホルダーなどの機能を提供します。
+        /// Unity バージョンによるスタイル名の違いにも対応しています。
+        /// </remarks>
+        
+        /// <summary>
+        /// 検索フィールドをレンダリングします
+        /// </summary>
+        /// <param name="text">現在の検索テキスト</param>
+        /// <returns>更新された検索テキスト</returns>
+        private string SearchField(string text)
         {
             Rect rect = GUILayoutUtility.GetRect(16f, 24f, 16f, 24f, new GUILayoutOption[]
             {
-                GUILayout.Width(400f), // 検索ボックスのサイズ
+                GUILayout.Width(400f)
             });
             rect.x += 4f;
             rect.y += 4f;
-
-            return (string)ToolbarSearchField(rect, text);
+            
+            return ToolbarSearchField(rect, text);
         }
-
-        private static string ToolbarSearchField(Rect position, string text)
+        
+        /// <summary>
+        /// ツールバースタイルの検索フィールドを描画します
+        /// </summary>
+        /// <param name="position">描画位置</param>
+        /// <param name="text">現在のテキスト</param>
+        /// <returns>更新されたテキスト</returns>
+        private string ToolbarSearchField(Rect position, string text)
         {
+            InitializeSearchFieldStyles();
+            
             Rect rect = position;
             rect.x += position.width;
             rect.width = 14f;
-
-            if (toolbarSearchField == null)
+            
+            text = EditorGUI.TextField(position, text, _toolbarSearchField);
+            
+            if (string.IsNullOrEmpty(text))
             {
-#if UNITY_2022_1_OR_NEWER
-                toolbarSearchField = GetStyle("ToolbarSearchTextField");
-#else
-                toolbarSearchField = GetStyle("ToolbarSeachTextField");
-#endif
-            }
-
-            text = EditorGUI.TextField(position, text, toolbarSearchField);
-            if (text == "")
-            {
-                if (toolbarSearchFieldCancelButtonEmpty == null)
-                {
-#if UNITY_2022_1_OR_NEWER
-                    toolbarSearchFieldCancelButtonEmpty = GetStyle("ToolbarSearchCancelButtonEmpty");
-#else
-                    toolbarSearchFieldCancelButtonEmpty = GetStyle("ToolbarSeachCancelButtonEmpty");
-#endif
-                }
-
-                GUI.Button(rect, GUIContent.none, toolbarSearchFieldCancelButtonEmpty);
+                GUI.Button(rect, GUIContent.none, _toolbarSearchFieldCancelButtonEmpty);
             }
             else
             {
-                if (toolbarSearchFieldCancelButton == null)
-                {
-#if UNITY_2022_1_OR_NEWER
-                    toolbarSearchFieldCancelButton = GetStyle("ToolbarSearchCancelButton");
-#else
-                    toolbarSearchFieldCancelButton = GetStyle("ToolbarSeachCancelButton");
-#endif
-                }
-
-                if (GUI.Button(rect, GUIContent.none, toolbarSearchFieldCancelButton))
+                if (GUI.Button(rect, GUIContent.none, _toolbarSearchFieldCancelButton))
                 {
                     text = "";
                     GUIUtility.keyboardControl = 0;
                 }
             }
-
+            
             return text;
         }
-
+        
+        /// <summary>
+        /// 検索フィールドのスタイルを初期化します
+        /// </summary>
+        /// <remarks>
+        /// Unity 2022.1 以降でのスタイル名変更に対応しています。
+        /// </remarks>
+        private void InitializeSearchFieldStyles()
+        {
+            if (_toolbarSearchField == null)
+            {
+                #if UNITY_2022_1_OR_NEWER
+                _toolbarSearchField = GetStyle("ToolbarSearchTextField");
+                #else
+                _toolbarSearchField = GetStyle("ToolbarSeachTextField");
+                #endif
+            }
+            
+            if (_toolbarSearchFieldCancelButtonEmpty == null)
+            {
+                #if UNITY_2022_1_OR_NEWER
+                _toolbarSearchFieldCancelButtonEmpty = GetStyle("ToolbarSearchCancelButtonEmpty");
+                #else
+                _toolbarSearchFieldCancelButtonEmpty = GetStyle("ToolbarSeachCancelButtonEmpty");
+                #endif
+            }
+            
+            if (_toolbarSearchFieldCancelButton == null)
+            {
+                #if UNITY_2022_1_OR_NEWER
+                _toolbarSearchFieldCancelButton = GetStyle("ToolbarSearchCancelButton");
+                #else
+                _toolbarSearchFieldCancelButton = GetStyle("ToolbarSeachCancelButton");
+                #endif
+            }
+        }
+        
+        /// <summary>
+        /// 指定名の GUIStyle を取得します
+        /// </summary>
+        /// <param name="styleName">スタイル名</param>
+        /// <returns>見つかった GUIStyle、または空の GUIStyle</returns>
+        /// <remarks>
+        /// Unity の組み込みスキンからスタイルを検索し、
+        /// 見つからない場合はエラーログを出力して空のスタイルを返します。
+        /// </remarks>
         private static GUIStyle GetStyle(string styleName)
         {
             GUIStyle gUIStyle = GUI.skin.FindStyle(styleName);
@@ -570,14 +416,16 @@ namespace SheetSync
             {
                 gUIStyle = EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).FindStyle(styleName);
             }
-
+            
             if (gUIStyle == null)
             {
                 Debug.LogError("Missing built-in guistyle " + styleName);
                 gUIStyle = new GUIStyle();
             }
-
+            
             return gUIStyle;
         }
+        
+        #endregion
     }
 }

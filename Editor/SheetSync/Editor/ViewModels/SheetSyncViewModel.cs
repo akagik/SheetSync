@@ -5,6 +5,7 @@ using System.Collections;
 using UnityEngine;
 using SheetSync.Editor.Models;
 using SheetSync.Editor.Commands;
+using SheetSync.Editor.Services;
 using GlobalCCSettings = SheetSync.Models.GlobalCCSettings;
 
 namespace SheetSync.Editor.ViewModels
@@ -125,7 +126,7 @@ namespace SheetSync.Editor.ViewModels
             try
             {
                 var settings = _items.Select(vm => vm.Model.Settings).ToArray();
-                SheetSync.SheetSyncWindow.GenerateAllCode(settings, _globalSettings);
+                SheetSyncService.GenerateAllCode(settings, _globalSettings);
             }
             finally
             {
@@ -142,7 +143,7 @@ namespace SheetSync.Editor.ViewModels
             try
             {
                 var settings = _items.Select(vm => vm.Model.Settings).ToArray();
-                SheetSync.SheetSyncWindow.CreateAllAssets(settings, _globalSettings);
+                SheetSyncService.CreateAllAssets(settings, _globalSettings);
             }
             finally
             {
@@ -167,7 +168,7 @@ namespace SheetSync.Editor.ViewModels
             if (_isProcessing) return;
             
             itemViewModel.UpdateStatus("Downloading...", true);
-            KoheiUtils.EditorCoroutineRunner.StartCoroutine(SheetSync.SheetSyncWindow.ExecuteDownload(itemViewModel.Model.Settings));
+            KoheiUtils.EditorCoroutineRunner.StartCoroutine(SheetSyncService.ExecuteDownload(itemViewModel.Model.Settings));
         }
         
         public void GenerateCode(ConvertSettingItemViewModel itemViewModel)
@@ -179,7 +180,7 @@ namespace SheetSync.Editor.ViewModels
             
             try
             {
-                SheetSync.SheetSyncWindow.GenerateOneCode(itemViewModel.Model.Settings, _globalSettings);
+                SheetSyncService.GenerateOneCode(itemViewModel.Model.Settings, _globalSettings);
                 itemViewModel.UpdateStatus("Code generated successfully");
             }
             catch (Exception ex)
@@ -222,7 +223,7 @@ namespace SheetSync.Editor.ViewModels
         
         private IEnumerator ExecuteImportCoroutine(ConvertSettingItemViewModel itemViewModel)
         {
-            yield return SheetSync.SheetSyncWindow.ExecuteImport(itemViewModel.Model.Settings);
+            yield return SheetSyncService.ExecuteImport(itemViewModel.Model.Settings);
             
             itemViewModel.UpdateStatus("Import completed");
             itemViewModel.IsProcessing = false;
