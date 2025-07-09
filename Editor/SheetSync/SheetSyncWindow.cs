@@ -41,7 +41,7 @@ namespace SheetSync
             // isAll用のデータをキャッシュ
             var allSettingList = new List<SheetSync.Models.ConvertSetting>();
 
-            string[] settingGUIDArray = AssetDatabase.FindAssets("t:SheetSync.Models.ConvertSetting");
+            string[] settingGUIDArray = AssetDatabase.FindAssets("t:ConvertSetting");
             for (int i = 0; i < settingGUIDArray.Length; i++)
             {
                 string assetPath = AssetDatabase.GUIDToAssetPath(settingGUIDArray[i]);
