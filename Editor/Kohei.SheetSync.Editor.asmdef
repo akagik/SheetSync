@@ -1,5 +1,6 @@
 {
     "name": "Kohei.SheetSync.Editor",
+    "rootNamespace": "",
     "references": [
         "GUID:ad9bf89103d8b49d7bbffa248f0928d2",
         "GUID:8ccf1a8221e634f81ab304e13e89b698"
@@ -10,7 +11,13 @@
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
-    "precompiledReferences": [],
+    "precompiledReferences": [
+        "Google.Apis.dll",
+        "Google.Apis.Core.dll",
+        "Google.Apis.Auth.dll",
+        "Google.Apis.Auth.PlatformServices.dll",
+        "Google.Apis.Sheets.v4.dll"
+    ],
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
