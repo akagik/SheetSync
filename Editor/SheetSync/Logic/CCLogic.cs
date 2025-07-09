@@ -1,11 +1,8 @@
-﻿using KoheiUtils;
-
-namespace SheetSync
+﻿namespace SheetSync
 {
     using System;
     using System.Collections.Generic;
     using System.IO;
-    using System.Reflection;
     using UnityEditor;
     using UnityEngine;
 
@@ -22,9 +19,9 @@ namespace SheetSync
         /// グローバル設定ファイルはプロジェクト内にただ１つだけ配置し、その場所は問わない。
         /// 設定ファイルは存在しない場合はデフォルトの設定を利用する。
         /// </summary>
-        public static GlobalCCSettings GetGlobalSettings()
+        public static SheetSync.Models.GlobalCCSettings GetGlobalSettings()
         {
-            string[] settingGUIDArray = AssetDatabase.FindAssets("t:" + typeof(GlobalCCSettings));
+            string[] settingGUIDArray = AssetDatabase.FindAssets("t:" + typeof(SheetSync.Models.GlobalCCSettings));
 
             if (settingGUIDArray.Length >= 2)
             {
@@ -33,11 +30,11 @@ namespace SheetSync
             // グローバルな設定ファイルが見つからない場合はその場で一時的に生成する.
             else if (settingGUIDArray.Length == 0)
             {
-                return ScriptableObject.CreateInstance<GlobalCCSettings>();
+                return ScriptableObject.CreateInstance<SheetSync.Models.GlobalCCSettings>();
             }
 
             string path = AssetDatabase.GUIDToAssetPath(settingGUIDArray[0]);
-            return AssetDatabase.LoadAssetAtPath<GlobalCCSettings>(path);
+            return AssetDatabase.LoadAssetAtPath<SheetSync.Models.GlobalCCSettings>(path);
         }
 
         /// <summary>
@@ -67,7 +64,7 @@ namespace SheetSync
         /// <summary>
         /// メインの出力アセットへのパスを指す.
         /// </summary>
-        public static string GetMainOutputPath(ConvertSetting s)
+        public static string GetMainOutputPath(SheetSync.Models.ConvertSetting s)
         {
             string settingsPath = s.GetDirectoryPath();
             string dst = "";

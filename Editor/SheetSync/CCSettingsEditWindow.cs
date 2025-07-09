@@ -1,5 +1,5 @@
 using System.IO;
-using KoheiUtils;
+using SheetSync.Models;
 using UnityEngine;
 
 namespace SheetSync
@@ -18,7 +18,7 @@ namespace SheetSync
         public bool   isDictionary;
 
 //        string                       settingPath;
-        ConvertSetting settings;
+        SheetSync.Models.ConvertSetting settings;
 
         private bool createNew;
         private string newAssetDir;
@@ -30,7 +30,7 @@ namespace SheetSync
             return window;
         }
 
-        public void SetSettings(ConvertSetting setting)
+        public void SetSettings(SheetSync.Models.ConvertSetting setting)
         {
             this.settings = setting;
             this.createNew = false;
@@ -42,7 +42,7 @@ namespace SheetSync
             isDictionary = setting.isDictionary;
         }
         
-        public void SetNewSettings(ConvertSetting setting, string newAssetDir)
+        public void SetNewSettings(SheetSync.Models.ConvertSetting setting, string newAssetDir)
         {
             this.settings = setting;
             this.createNew = true;

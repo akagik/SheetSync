@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using System.IO;
-using KoheiUtils;
+using SheetSync.Models;
 
 namespace SheetSync
 {
@@ -15,10 +15,10 @@ namespace SheetSync
         {
             Field[] fields = GetFieldsFromHeader(header);
 
-            if (verbose)
-            {
-                Debug.Log("header fields: " + fields.ToString<Field>());
-            }
+            // if (verbose)
+            // {
+            //     Debug.Log("header fields: " + fields.ToString<Field>());
+            // }
 
             string classData = "";
             classData += "public enum " + name + "\n";

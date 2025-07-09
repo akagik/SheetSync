@@ -1,11 +1,11 @@
 ﻿using System.Collections;
-using KoheiUtils;
-using KoheiUtils.Reflections;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using System.IO;
+using KoheiUtils;
+using KoheiUtils.Reflections;
 using Object = UnityEngine.Object;
 
 #if ODIN_INSPECTOR
@@ -28,7 +28,7 @@ namespace SheetSync
         private string searchTxt = "";
 
         // チェックボックス用
-        ConvertSetting[] cachedAllSettings;
+        SheetSync.Models.ConvertSetting[] cachedAllSettings;
 
         [MenuItem("SheetSync/Open SheetSync", false, 0)]
         public static void OpenWindow()
@@ -39,13 +39,13 @@ namespace SheetSync
         void OnFocus()
         {
             // isAll用のデータをキャッシュ
-            var allSettingList = new List<ConvertSetting>();
+            var allSettingList = new List<SheetSync.Models.ConvertSetting>();
 
-            string[] settingGUIDArray = AssetDatabase.FindAssets("t:ConvertSetting");
+            string[] settingGUIDArray = AssetDatabase.FindAssets("t:SheetSync.Models.ConvertSetting");
             for (int i = 0; i < settingGUIDArray.Length; i++)
             {
                 string assetPath = AssetDatabase.GUIDToAssetPath(settingGUIDArray[i]);
-                var settings = AssetDatabase.LoadAssetAtPath<ConvertSetting>(assetPath);
+                var settings = AssetDatabase.LoadAssetAtPath<SheetSync.Models.ConvertSetting>(assetPath);
                 allSettingList.Add(settings);
             }
 
@@ -55,7 +55,7 @@ namespace SheetSync
         private void OnGUI()
         {
             GUILayout.Space(6f);
-            ConvertSetting[] settings = null;
+            SheetSync.Models.ConvertSetting[] settings = null;
 
             if (cachedAllSettings != null)
             {
@@ -74,7 +74,7 @@ namespace SheetSync
 
                 for (int i = 0; i < settings.Length; i++)
                 {
-                    ConvertSetting s = settings[i];
+                    SheetSync.Models.ConvertSetting s = settings[i];
 
                     // 設定が削除されている場合などに対応
                     if (s == null)
@@ -194,7 +194,7 @@ namespace SheetSync
                         GUI.enabled = s.canGenerateCode;
                         if (GUILayout.Button("Generate Code", GUILayout.Width(110)) && !isDownloading)
                         {
-                            GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
+                            SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
                             isDownloading = true;
                             GenerateOneCode(s, gSettings);
                             isDownloading = false;
@@ -254,7 +254,7 @@ namespace SheetSync
                 GUILayout.BeginHorizontal("box");
                 if (GUILayout.Button("Generate All Codes", "LargeButtonMid") && !isDownloading)
                 {
-                    GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
+                    SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
                     isDownloading = true;
                     GenerateAllCode(settings, gSettings);
                     isDownloading = false;
@@ -264,7 +264,7 @@ namespace SheetSync
 
                 if (GUILayout.Button("Create All Assets", "LargeButtonMid") && !isDownloading)
                 {
-                    GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
+                    SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
                     isDownloading = true;
                     CreateAllAssets(settings, gSettings);
                     isDownloading = false;
@@ -278,7 +278,7 @@ namespace SheetSync
 
         static bool downloadSuccess;
 
-        public static IEnumerator ExecuteImport(ConvertSetting s)
+        public static IEnumerator ExecuteImport(SheetSync.Models.ConvertSetting s)
         {
             downloadSuccess = false;
             yield return EditorCoroutineRunner.StartCoroutine(ExecuteDownload(s));
@@ -297,7 +297,7 @@ namespace SheetSync
             if (s.isEnum || !CsvConvert.TryGetTypeWithError(s.className, out assetType,
                     s.checkFullyQualifiedName, dialog: false))
             {
-                GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
+                SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
                 GenerateOneCode(s, gSettings);
 
                 if (!s.isEnum)
@@ -383,13 +383,13 @@ namespace SheetSync
             }
         }
 
-        public static IEnumerator ExecuteDownload(ConvertSetting s)
+        public static IEnumerator ExecuteDownload(SheetSync.Models.ConvertSetting s)
         {
             GSPluginSettings.Sheet sheet = new GSPluginSettings.Sheet();
             sheet.sheetId = s.sheetID;
             sheet.gid = s.gid;
 
-            GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
+            SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
 
             string csvPath = s.GetCsvPath(gSettings);
             if (string.IsNullOrWhiteSpace(csvPath))
@@ -428,13 +428,13 @@ namespace SheetSync
             yield break;
         }
 
-        public static void GenerateAllCode(ConvertSetting[] setting, GlobalCCSettings gSettings)
+        public static void GenerateAllCode(SheetSync.Models.ConvertSetting[] setting, SheetSync.Models.GlobalCCSettings gSettings)
         {
             int i = 0;
 
             try
             {
-                foreach (ConvertSetting s in setting)
+                foreach (SheetSync.Models.ConvertSetting s in setting)
                 {
                     show_progress(s.className, (float)i / setting.Length, i, setting.Length);
                     CsvConvert.GenerateCode(s, gSettings);
@@ -452,7 +452,7 @@ namespace SheetSync
             EditorUtility.ClearProgressBar();
         }
 
-        public static void CreateAllAssets(ConvertSetting[] setting, GlobalCCSettings gSettings)
+        public static void CreateAllAssets(SheetSync.Models.ConvertSetting[] setting, SheetSync.Models.GlobalCCSettings gSettings)
         {
             try
             {
@@ -471,7 +471,7 @@ namespace SheetSync
             EditorUtility.ClearProgressBar();
         }
 
-        public static void GenerateOneCode(ConvertSetting s, GlobalCCSettings gSettings)
+        public static void GenerateOneCode(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings)
         {
             show_progress(s.className, 0, 0, 1);
 

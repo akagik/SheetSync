@@ -1,5 +1,5 @@
 using System;
-using KoheiUtils;
+using SheetSync.Models;
 using UnityEditor;
 using UnityEngine;
 
@@ -7,17 +7,17 @@ namespace SheetSync
 {
     public class CreateAssetsJob
     {
-        public ConvertSetting settings;
+        public SheetSync.Models.ConvertSetting settings;
         // public string settingPath => settings.GetDirectoryPath();
 
-        public CreateAssetsJob(ConvertSetting settings)
+        public CreateAssetsJob(SheetSync.Models.ConvertSetting settings)
         {
             this.settings    = settings;
         }
 
         public object Execute()
         {
-            GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
+            SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
 
             object generated = null;
             

@@ -1,4 +1,5 @@
 using KoheiUtils;
+using SheetSync.Models;
 
 namespace SheetSync
 {
@@ -8,11 +9,11 @@ namespace SheetSync
     using System.Collections.Generic;
     using UnityEngine;
     using UnityEditor;
-    using ResultType = AssetsGenerator.ResultType;
+    using ResultType = SheetSync.Models.ResultType;
 
     public class CsvConvert
     {
-        public static void GenerateCode(ConvertSetting s, GlobalCCSettings gSettings)
+        public static void GenerateCode(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings)
         {
             string settingPath = s.GetDirectoryPath();
             string    csvPath   = CCLogic.GetFilePathRelativesToAssets(settingPath, s.GetCsvPath(gSettings));
@@ -99,7 +100,7 @@ namespace SheetSync
             AssetDatabase.Refresh();
         }
 
-        public static object CreateAssets(ConvertSetting s, GlobalCCSettings gSettings)
+        public static object CreateAssets(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings)
         {
             string settingPath = s.GetDirectoryPath();
             string    csvPath   = CCLogic.GetFilePathRelativesToAssets(settingPath, s.GetCsvPath(gSettings));
@@ -207,26 +208,26 @@ namespace SheetSync
                 int        line       = i + 2 + 1;
                 ResultType resultType = assetsGenerator.CreateCsvAssetAt(i, gSettings);
 
-                // if ((resultType & ResultType.SkipNoKey & gSettings.logType) != 0)
-                // {
-                //     Debug.LogWarningFormat("{0} line {1}: key が存在しない行をスキップしました", s.className, line);
-                // }
-                // if ((resultType & ResultType.JoinIndexMismatch & gSettings.logType) != 0)
-                // {
-                //     Debug.LogErrorFormat("{0} line {1}: Join する index の値が不正です. index は 0 から始めて連続する整数である必要があります", s.className, line);
-                // }
-                // if ((resultType & ResultType.JoinNoReferenceRow & gSettings.logType) != 0)
-                // {
-                //     Debug.LogErrorFormat("{0} line {1}: Join の対象となるマスターが存在しません", s.className, line);
-                // }
-                // if ((resultType & ResultType.JoinNoFindMethod & gSettings.logType) != 0)
-                // {
-                //     Debug.LogErrorFormat("{0} line {1}: Join Target のテーブル class に指定された Find メソッドが存在しません: {2}", s.className, line, s.targetFindMethodName);
-                // }
-                // if ((resultType & ResultType.VersionMismatch & gSettings.logType) != 0)
-                // {
-                //     Debug.LogWarningFormat("{0} line {1}: version のミスマッチ行をスキップ.", s.className, line);
-                // }
+                if ((resultType & ResultType.SkipNoKey & gSettings.logType) != 0)
+                {
+                    Debug.LogWarningFormat("{0} line {1}: key が存在しない行をスキップしました", s.className, line);
+                }
+                if ((resultType & ResultType.JoinIndexMismatch & gSettings.logType) != 0)
+                {
+                    Debug.LogErrorFormat("{0} line {1}: Join する index の値が不正です. index は 0 から始めて連続する整数である必要があります", s.className, line);
+                }
+                if ((resultType & ResultType.JoinNoReferenceRow & gSettings.logType) != 0)
+                {
+                    Debug.LogErrorFormat("{0} line {1}: Join の対象となるマスターが存在しません", s.className, line);
+                }
+                if ((resultType & ResultType.JoinNoFindMethod & gSettings.logType) != 0)
+                {
+                    Debug.LogErrorFormat("{0} line {1}: Join Target のテーブル class に指定された Find メソッドが存在しません: {2}", s.className, line, s.targetFindMethodName);
+                }
+                if ((resultType & ResultType.VersionMismatch & gSettings.logType) != 0)
+                {
+                    Debug.LogWarningFormat("{0} line {1}: version のミスマッチ行をスキップ.", s.className, line);
+                }
 
                 int total = assetsGenerator.contentRowCount;
                 if (total <= 10 || i == total - 1 || i % (total / 10) == 0)

@@ -6,14 +6,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using KoheiUtils;
+using SheetSync.Models;
 using Object = UnityEngine.Object;
 
 namespace SheetSync
 {
     public class AssetsGenerator
     {
-        private ConvertSetting setting;
+        private SheetSync.Models.ConvertSetting setting;
         private Type[] customAssetTypes;
         private HashSet<Type> customAssetTypeSet;
 
@@ -47,7 +47,7 @@ namespace SheetSync
 
         public int contentRowCount => content.row;
 
-        public AssetsGenerator(ConvertSetting _setting, Field[] _fields, CsvData _content)
+        public AssetsGenerator(SheetSync.Models.ConvertSetting _setting, Field[] _fields, CsvData _content)
         {
             setting = _setting;
             fields = _fields;
@@ -197,23 +197,8 @@ namespace SheetSync
 
             return true;
         }
-
-        [Flags]
-        public enum ResultType
-        {
-            None = 0,
-            SkipNoKey = 1 << 0,
-            EmptyCell = 1 << 1,
-            ConvertFails = 1 << 2,
-            JoinIndexMismatch = 1 << 3,
-            JoinNoReferenceRow = 1 << 4,
-            JoinNoFindMethod = 1 << 5,
-            VersionMismatch = 1 << 6,
-            
-            All = SkipNoKey | EmptyCell | ConvertFails | JoinIndexMismatch | JoinNoReferenceRow | JoinNoFindMethod | VersionMismatch
-        }
-
-        public ResultType CreateCsvAssetAt(int i, GlobalCCSettings gSettings)
+        
+        public ResultType CreateCsvAssetAt(int i, SheetSync.Models.GlobalCCSettings gSettings)
         {
             ResultType resultType = ResultType.None;
             

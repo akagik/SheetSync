@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using KoheiUtils;
+using SheetSync.Models;
 
 namespace SheetSync
 {
@@ -63,7 +64,7 @@ namespace SheetSync
             return classData;
         }
 
-        public static string GenerateTableClass(ConvertSetting setting, string tableClassName, Field[] keys)
+        public static string GenerateTableClass(SheetSync.Models.ConvertSetting setting, string tableClassName, Field[] keys)
         {
             string className = setting.className;
 
@@ -135,7 +136,7 @@ namespace SheetSync
             return ta.text;
         }
 
-        public static int[] FindKeyIndexes(ConvertSetting setting, Field[] fields)
+        public static int[] FindKeyIndexes(SheetSync.Models.ConvertSetting setting, Field[] fields)
         {
             List<int> indexes = new List<int>();
 
