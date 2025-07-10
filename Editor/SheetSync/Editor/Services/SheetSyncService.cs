@@ -45,13 +45,22 @@ namespace SheetSync.Editor.Services
         /// </remarks>
         public static IEnumerator ExecuteImport(SheetSync.Models.ConvertSetting settings)
         {
+            Debug.Log($"[ExecuteImport] 開始 - {settings.className}");
+            
             downloadSuccess = false;
             yield return EditorCoroutineRunner.StartCoroutine(ExecuteDownload(settings));
 
             if (!downloadSuccess)
             {
+                Debug.LogError($"[ExecuteImport] ダウンロード失敗 - {settings.className}");
                 yield break;
             }
+            
+            Debug.Log($"[ExecuteImport] ダウンロード成功 - {settings.className}");
+            
+            // AssetDatabase を明示的にリフレッシュ
+            AssetDatabase.Refresh();
+            yield return null; // 1フレーム待機
 
             CreateAssetsJob createAssetsJob = new CreateAssetsJob(settings);
             object generatedAssets = null;
@@ -158,10 +167,6 @@ namespace SheetSync.Editor.Services
         /// </remarks>
         public static IEnumerator ExecuteDownload(SheetSync.Models.ConvertSetting settings)
         {
-            GSPluginSettings.Sheet sheet = new GSPluginSettings.Sheet();
-            sheet.sheetId = settings.sheetID;
-            sheet.gid = settings.gid;
-
             SheetSync.Models.GlobalCCSettings gSettings = SheetSync.CCLogic.GetGlobalSettings();
 
             string csvPath = settings.GetCsvPath(gSettings);
@@ -175,9 +180,15 @@ namespace SheetSync.Editor.Services
             string absolutePath = SheetSync.CCLogic.GetFilePathRelativesToAssets(settings.GetDirectoryPath(), csvPath);
 
             // 先頭の Assets を削除する
+            string targetPath;
             if (absolutePath.StartsWith("Assets" + Path.DirectorySeparatorChar))
             {
-                sheet.targetPath = absolutePath.Substring(6);
+                // "Assets/" または "Assets\" の後の部分を取得
+                targetPath = absolutePath.Substring(7); // "Assets/" の長さは7
+            }
+            else if (absolutePath.StartsWith("Assets/"))
+            {
+                targetPath = absolutePath.Substring(7);
             }
             else
             {
@@ -185,15 +196,24 @@ namespace SheetSync.Editor.Services
                 downloadSuccess = false;
                 yield break;
             }
+            
+            Debug.Log($"ExecuteDownload - csvPath: {csvPath}");
+            Debug.Log($"ExecuteDownload - absolutePath: {absolutePath}");
+            Debug.Log($"ExecuteDownload - targetPath: {targetPath}");
+            Debug.Log($"ExecuteDownload - outputDirectory: {settings.GetDirectoryPath()}");
 
-            sheet.isCsv = true;
-            sheet.verbose = false;
+            // SheetDownloadInfo を作成
+            var sheetInfo = new SheetDownloadInfo(
+                targetPath: targetPath,
+                sheetId: settings.sheetID,
+                gid: settings.gid
+            );
 
-            string title = "Google Spreadsheet Loader";
-            yield return EditorCoroutineRunner.StartCoroutineWithUI(GSEditorWindow.Download(sheet, settings.GetDirectoryPath()), title, true);
+            // Google Sheets API v4 を使用してダウンロード
+            yield return GoogleSheetsDownloader.DownloadAsCsv(sheetInfo, settings.GetDirectoryPath());
 
             // 成功判定を行う.
-            if (GSEditorWindow.previousDownloadSuccess)
+            if (GoogleSheetsDownloader.previousDownloadSuccess)
             {
                 downloadSuccess = true;
             }

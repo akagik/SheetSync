@@ -103,13 +103,33 @@ namespace SheetSync
         public static object CreateAssets(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings)
         {
             string settingPath = s.GetDirectoryPath();
-            string    csvPath   = CCLogic.GetFilePathRelativesToAssets(settingPath, s.GetCsvPath(gSettings));
+            string csvRelativePath = s.GetCsvPath(gSettings);
+            string csvPath = CCLogic.GetFilePathRelativesToAssets(settingPath, csvRelativePath);
+            
+            Debug.Log($"[CsvConvert] settingPath: {settingPath}");
+            Debug.Log($"[CsvConvert] csvRelativePath: {csvRelativePath}");
+            Debug.Log($"[CsvConvert] csvPath (final): {csvPath}");
+            
+            // ファイルの存在確認
+            string fullPath = Path.Combine(Application.dataPath, "..", csvPath);
+            Debug.Log($"[CsvConvert] fullPath: {fullPath}");
+            Debug.Log($"[CsvConvert] File.Exists: {System.IO.File.Exists(fullPath)}");
+            
             TextAsset textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(csvPath);
 
             if (textAsset == null)
             {
                 Debug.LogError("Not found : " + csvPath);
-                return null;
+                
+                // AssetDatabase をリフレッシュして再試行
+                AssetDatabase.Refresh();
+                textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(csvPath);
+                
+                if (textAsset == null)
+                {
+                    Debug.LogError("Still not found after refresh : " + csvPath);
+                    return null;
+                }
             }
 
             if (s.isEnum)
