@@ -60,7 +60,7 @@ namespace SheetSync
             previousDownloadSuccess = false;
             
             // Google API の利用可能性をチェック
-            if (!Utils.GoogleApiChecker.CheckAndWarn())
+            if (!GoogleApiChecker.CheckAndWarn())
             {
                 yield break;
             }
@@ -90,7 +90,7 @@ namespace SheetSync
                 }
                 
                 // API キーを入力ダイアログで取得
-                apiKey = Tests.EditorInputDialog.Show("API キー入力", "Google API キーを入力してください:", "");
+                apiKey = EditorInputDialog.Show("API キー入力", "Google API キーを入力してください:", "");
                 if (!string.IsNullOrEmpty(apiKey))
                 {
                     EditorPrefs.SetString("SheetSync_ApiKey", apiKey);

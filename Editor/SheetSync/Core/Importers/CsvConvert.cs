@@ -9,7 +9,7 @@ namespace SheetSync
     using System.Collections.Generic;
     using UnityEngine;
     using UnityEditor;
-    using ResultType = SheetSync.ResultType;
+    // ResultType = SheetSync.ResultType; // 名前空間の競合を避けるため削除
 
     public class CsvConvert
     {
