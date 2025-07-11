@@ -2,17 +2,26 @@ using System;
 using SheetSync.Models;
 using UnityEditor;
 using UnityEngine;
+using SheetSync.Data;
+using SheetSync.Editor.Services;
 
 namespace SheetSync
 {
     public class CreateAssetsJob
     {
         public SheetSync.Models.ConvertSetting settings;
+        private ICsvDataProvider dataProvider;
         // public string settingPath => settings.GetDirectoryPath();
 
         public CreateAssetsJob(SheetSync.Models.ConvertSetting settings)
         {
             this.settings    = settings;
+        }
+        
+        public CreateAssetsJob(SheetSync.Models.ConvertSetting settings, ICsvDataProvider dataProvider)
+        {
+            this.settings = settings;
+            this.dataProvider = dataProvider;
         }
 
         public object Execute()
@@ -23,7 +32,13 @@ namespace SheetSync
             
             try
             {
-                generated = CsvConvert.CreateAssets(settings, gSettings);
+                // データプロバイダーが設定されていない場合は、SheetSyncService から取得
+                if (dataProvider == null)
+                {
+                    dataProvider = SheetSyncService.GetCsvDataProvider(settings, gSettings);
+                }
+                
+                generated = CsvConvert.CreateAssets(settings, gSettings, dataProvider);
             }
             catch (Exception e)
             {

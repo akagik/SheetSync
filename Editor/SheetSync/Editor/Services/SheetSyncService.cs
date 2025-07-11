@@ -1,10 +1,13 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEditor;
 using KoheiUtils;
 using KoheiUtils.Reflections;
+using SheetSync.Data;
+using SheetSync.Data.Providers;
 
 namespace SheetSync.Editor.Services
 {
@@ -30,6 +33,7 @@ namespace SheetSync.Editor.Services
     public static class SheetSyncService
     {
         private static bool downloadSuccess;
+        private static IList<IList<object>> directImportData;
         
         /// <summary>
         /// ConvertSetting のインポート処理を実行します
@@ -48,7 +52,17 @@ namespace SheetSync.Editor.Services
             Debug.Log($"[ExecuteImport] 開始 - {settings.className}");
             
             downloadSuccess = false;
-            yield return EditorCoroutineRunner.StartCoroutine(ExecuteDownload(settings));
+            directImportData = null;
+            
+            // ダウンロード処理（直接インポートまたはファイル経由）
+            if (settings.useDirectImport && settings.useGSPlugin)
+            {
+                yield return EditorCoroutineRunner.StartCoroutine(ExecuteDirectDownload(settings));
+            }
+            else
+            {
+                yield return EditorCoroutineRunner.StartCoroutine(ExecuteDownload(settings));
+            }
 
             if (!downloadSuccess)
             {
@@ -58,11 +72,18 @@ namespace SheetSync.Editor.Services
             
             Debug.Log($"[ExecuteImport] ダウンロード成功 - {settings.className}");
             
-            // AssetDatabase を明示的にリフレッシュ
-            AssetDatabase.Refresh();
-            yield return null; // 1フレーム待機
+            // 直接インポートの場合はリフレッシュ不要
+            if (!settings.useDirectImport)
+            {
+                // AssetDatabase を明示的にリフレッシュ
+                AssetDatabase.Refresh();
+                yield return null; // 1フレーム待機
+            }
 
-            CreateAssetsJob createAssetsJob = new CreateAssetsJob(settings);
+            // データプロバイダーを取得
+            SheetSync.Models.GlobalCCSettings gSettings = SheetSync.CCLogic.GetGlobalSettings();
+            ICsvDataProvider dataProvider = GetCsvDataProvider(settings, gSettings);
+            CreateAssetsJob createAssetsJob = new CreateAssetsJob(settings, dataProvider);
             object generatedAssets = null;
 
             // Generate Code if type script is not found.
@@ -70,7 +91,6 @@ namespace SheetSync.Editor.Services
             if (settings.isEnum || !CsvConvert.TryGetTypeWithError(settings.className, out assetType,
                     settings.checkFullyQualifiedName, dialog: false))
             {
-                SheetSync.Models.GlobalCCSettings gSettings = SheetSync.CCLogic.GetGlobalSettings();
                 GenerateOneCode(settings, gSettings);
 
                 if (!settings.isEnum)
@@ -222,6 +242,46 @@ namespace SheetSync.Editor.Services
         }
         
         /// <summary>
+        /// ConvertSetting の直接ダウンロード処理を実行します（ファイルを経由しない）
+        /// </summary>
+        /// <param name="settings">ダウンロード対象の ConvertSetting</param>
+        /// <returns>処理のコルーチン</returns>
+        /// <remarks>
+        /// Google Sheets API からデータを取得し、メモリ上に保持します。
+        /// ファイル保存をバイパスしてメモリ効率を向上させます。
+        /// </remarks>
+        public static IEnumerator ExecuteDirectDownload(SheetSync.Models.ConvertSetting settings)
+        {
+            Debug.Log($"[ExecuteDirectDownload] 直接インポート開始 - {settings.className}");
+            
+            // SheetDownloadInfo を作成
+            var sheetInfo = new SheetDownloadInfo(
+                targetPath: "", // 直接インポートでは不要
+                sheetId: settings.sheetID,
+                gid: settings.gid
+            );
+
+            // Google Sheets API v4 を使用して直接データ取得
+            yield return GoogleSheetsDownloader.DownloadAsData(sheetInfo);
+
+            // 成功判定とデータ取得
+            if (GoogleSheetsDownloader.previousDownloadSuccess && 
+                GoogleSheetsDownloader.previousDownloadData != null)
+            {
+                directImportData = GoogleSheetsDownloader.previousDownloadData;
+                downloadSuccess = true;
+                Debug.Log($"[ExecuteDirectDownload] データ取得成功 - 行数: {directImportData.Count}");
+            }
+            else
+            {
+                downloadSuccess = false;
+                Debug.LogError("[ExecuteDirectDownload] データ取得失敗");
+            }
+
+            yield break;
+        }
+        
+        /// <summary>
         /// すべての ConvertSetting に対してコード生成を実行します
         /// </summary>
         /// <param name="settings">コード生成対象の ConvertSetting 配列</param>
@@ -333,6 +393,28 @@ namespace SheetSync.Editor.Services
         private static string ProgressMessage(string name, int current, int total)
         {
             return string.Format("Creating {0} ({1}/{2})", name, current, total);
+        }
+        
+        /// <summary>
+        /// ConvertSetting に基づいて適切な CsvDataProvider を取得します
+        /// </summary>
+        /// <param name="settings">変換設定</param>
+        /// <param name="globalSettings">グローバル設定</param>
+        /// <returns>ICsvDataProvider インスタンス</returns>
+        public static ICsvDataProvider GetCsvDataProvider(SheetSync.Models.ConvertSetting settings, SheetSync.Models.GlobalCCSettings globalSettings)
+        {
+            if (settings.useDirectImport && settings.useGSPlugin && directImportData != null)
+            {
+                // 直接インポート: メモリ上のデータを使用
+                return new GoogleSheetsCsvDataProvider(directImportData);
+            }
+            else
+            {
+                // ファイルベース: 従来の CSV ファイルを使用
+                string csvPath = settings.GetCsvPath(globalSettings);
+                string absolutePath = SheetSync.CCLogic.GetFilePathRelativesToAssets(settings.GetDirectoryPath(), csvPath);
+                return new FileCsvDataProvider(absolutePath, globalSettings);
+            }
         }
     }
 }

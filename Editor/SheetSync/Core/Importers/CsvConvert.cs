@@ -1,5 +1,6 @@
 using KoheiUtils;
 using SheetSync.Models;
+using SheetSync.Data;
 
 namespace SheetSync
 {
@@ -102,49 +103,110 @@ namespace SheetSync
 
         public static object CreateAssets(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings)
         {
-            string settingPath = s.GetDirectoryPath();
-            string csvRelativePath = s.GetCsvPath(gSettings);
-            string csvPath = CCLogic.GetFilePathRelativesToAssets(settingPath, csvRelativePath);
-            
-            Debug.Log($"[CsvConvert] settingPath: {settingPath}");
-            Debug.Log($"[CsvConvert] csvRelativePath: {csvRelativePath}");
-            Debug.Log($"[CsvConvert] csvPath (final): {csvPath}");
-            
-            // ファイルの存在確認
-            string fullPath = Path.Combine(Application.dataPath, "..", csvPath);
-            Debug.Log($"[CsvConvert] fullPath: {fullPath}");
-            Debug.Log($"[CsvConvert] File.Exists: {System.IO.File.Exists(fullPath)}");
-            
-            TextAsset textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(csvPath);
-
-            if (textAsset == null)
+            return CreateAssets(s, gSettings, null);
+        }
+        
+        public static object CreateAssets(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings, ICsvDataProvider dataProvider)
+        {
+            // データプロバイダーが提供されていない場合は従来のファイルベース処理
+            if (dataProvider == null)
             {
-                Debug.LogError("Not found : " + csvPath);
+                string settingPath = s.GetDirectoryPath();
+                string csvRelativePath = s.GetCsvPath(gSettings);
+                string csvPath = CCLogic.GetFilePathRelativesToAssets(settingPath, csvRelativePath);
                 
-                // AssetDatabase をリフレッシュして再試行
-                AssetDatabase.Refresh();
-                textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(csvPath);
+                Debug.Log($"[CsvConvert] settingPath: {settingPath}");
+                Debug.Log($"[CsvConvert] csvRelativePath: {csvRelativePath}");
+                Debug.Log($"[CsvConvert] csvPath (final): {csvPath}");
                 
+                // ファイルの存在確認
+                string fullPath = Path.Combine(Application.dataPath, "..", csvPath);
+                Debug.Log($"[CsvConvert] fullPath: {fullPath}");
+                Debug.Log($"[CsvConvert] File.Exists: {System.IO.File.Exists(fullPath)}");
+                
+                TextAsset textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(csvPath);
+
                 if (textAsset == null)
                 {
-                    Debug.LogError("Still not found after refresh : " + csvPath);
+                    Debug.LogError("Not found : " + csvPath);
+                    
+                    // AssetDatabase をリフレッシュして再試行
+                    AssetDatabase.Refresh();
+                    textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(csvPath);
+                    
+                    if (textAsset == null)
+                    {
+                        Debug.LogError("Still not found after refresh : " + csvPath);
+                        return null;
+                    }
+                }
+
+                if (s.isEnum)
+                {
                     return null;
                 }
-            }
 
+                // csv ファイルから読み込み
+                CsvData csv      = CsvLogic.GetValidCsvData(textAsset.text, gSettings);
+                CsvData contents = csv.Slice(gSettings.rowIndexOfContentStart);
+                Field[] fields = CsvLogic.GetFieldsFromHeader(csv, gSettings);
+                return CreateAssetsInternal(s, gSettings, fields, contents);
+            }
+            
+            // データプロバイダーを使用
+            if (!dataProvider.IsAvailable())
+            {
+                Debug.LogError("Data provider is not available");
+                return null;
+            }
+            
             if (s.isEnum)
             {
                 return null;
             }
+            
+            Debug.Log($"[CsvConvert] Using data provider for {s.className}");
+            
+            // データプロバイダーから CSV データを取得
+            ICsvData csvData = dataProvider.GetCsvData();
+            ICsvData contents = csvData.GetRowSlice(gSettings.rowIndexOfContentStart);
 
-            // csv ファイルから読み込み
-            CsvData csv      = CsvLogic.GetValidCsvData(textAsset.text, gSettings);
-            CsvData contents = csv.Slice(gSettings.rowIndexOfContentStart);
-
-            Field[] fields = CsvLogic.GetFieldsFromHeader(csv, gSettings);
+            Field[] fields = CsvLogic.GetFieldsFromHeader(csvData, gSettings);
+            return CreateAssetsInternal(s, gSettings, fields, contents);
+        }
+        
+        private static object CreateAssetsInternal(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings, Field[] fields, object csvContents)
+        {
+            string settingPath = s.GetDirectoryPath();
 
             // アセットを生成する.
-            AssetsGenerator assetsGenerator = new AssetsGenerator(s, fields, contents);
+            AssetsGenerator assetsGenerator;
+            if (csvContents is CsvData csvData)
+            {
+                assetsGenerator = new AssetsGenerator(s, fields, csvData);
+            }
+            else if (csvContents is ICsvData iCsvData)
+            {
+                // ICsvData を CsvData に変換（AssetsGenerator が CsvData を期待するため）
+                CsvData convertedData = new CsvData();
+                var dataList = new System.Collections.Generic.List<System.Collections.Generic.List<string>>();
+                for (int i = 0; i < iCsvData.RowCount; i++)
+                {
+                    var row = new List<string>();
+                    foreach (var cell in iCsvData.GetRow(i))
+                    {
+                        row.Add(cell);
+                    }
+                    dataList.Add(row);
+                }
+                convertedData.SetFromList(dataList);
+                assetsGenerator = new AssetsGenerator(s, fields, convertedData);
+            }
+            else
+            {
+                Debug.LogError($"Unexpected csvContents type: {csvContents?.GetType()}");
+                return null;
+            }
 
             // カスタムアセットタイプを設定する
             // これはプロジェクト固有のアセットをテーブルでセット出来るようにする.

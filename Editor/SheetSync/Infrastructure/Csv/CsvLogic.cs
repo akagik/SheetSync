@@ -1,6 +1,7 @@
 ﻿using System;
 using KoheiUtils;
 using GlobalCCSettings = SheetSync.Models.GlobalCCSettings;
+using SheetSync.Data;
 
 namespace SheetSync
 {
@@ -38,6 +39,32 @@ namespace SheetSync
             csvData = csvData.SliceColumn(gSettings.columnIndexOfTableStart);
             
             return csvData;
+        }
+        
+        public static Field[] GetFieldsFromHeader(ICsvData csv, GlobalCCSettings gSettings)
+        {
+            // ICsvData を CsvData に変換
+            CsvData csvData;
+            if (csv is CsvData existingCsvData)
+            {
+                csvData = existingCsvData;
+            }
+            else
+            {
+                csvData = new CsvData();
+                var dataList = new System.Collections.Generic.List<System.Collections.Generic.List<string>>();
+                for (int i = 0; i < csv.RowCount; i++)
+                {
+                    var row = new System.Collections.Generic.List<string>();
+                    foreach (var cell in csv.GetRow(i))
+                    {
+                        row.Add(cell);
+                    }
+                    dataList.Add(row);
+                }
+                csvData.SetFromList(dataList);
+            }
+            return GetFieldsFromHeader(csvData, gSettings);
         }
         
         public static Field[] GetFieldsFromHeader(CsvData csv, GlobalCCSettings gSettings)

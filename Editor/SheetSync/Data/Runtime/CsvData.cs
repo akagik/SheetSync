@@ -1,13 +1,15 @@
 using System;
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 using KoheiUtils;
 using SheetSync.Models;
+using SheetSync.Data;
 
 namespace SheetSync
 {
     [Serializable]
-    public class CsvData
+    public class CsvData : ICsvData
     {
         public Row[] content;
 
@@ -18,8 +20,12 @@ namespace SheetSync
 
         public int col
         {
-            get { return content[0].data.Length; }
+            get { return content.Length > 0 ? content[0].data.Length : 0; }
         }
+        
+        // ICsvData インターフェースの実装
+        public int RowCount => row;
+        public int ColumnCount => col;
 
         [Serializable]
         public class Row
@@ -136,6 +142,43 @@ namespace SheetSync
         {
             content[i].data[j] = v;
         }
+        
+        // ICsvData インターフェースの実装
+        public string GetCell(int row, int col)
+        {
+            return Get(row, col);
+        }
+        
+        public void SetCell(int row, int col, string value)
+        {
+            Set(row, col, value);
+        }
+        
+        public ICsvData GetRowSlice(int startRow, int endRow = int.MaxValue)
+        {
+            return Slice(startRow, endRow);
+        }
+        
+        public ICsvData GetColumnSlice(int startCol, int endCol = int.MaxValue)
+        {
+            return SliceColumn(startCol, endCol);
+        }
+        
+        public IEnumerable<string> GetRow(int rowIndex)
+        {
+            if (rowIndex < 0 || rowIndex >= row)
+                return Enumerable.Empty<string>();
+            
+            return content[rowIndex].data;
+        }
+        
+        public IEnumerable<string> GetColumn(int colIndex)
+        {
+            if (colIndex < 0 || colIndex >= col)
+                return Enumerable.Empty<string>();
+            
+            return content.Select(r => r.data[colIndex]);
+        }
 
         public static Row[] CreateTable(int row, int col)
         {
@@ -178,6 +221,12 @@ namespace SheetSync
             }
         }
         
+        // ICsvData インターフェースの実装
+        public void SetFromListOfObjects(object table)
+        {
+            SetFromListOfListObject(table);
+        }
+        
         /// <summary>
         ///  list は List<List<object>> であることを期待する.
         /// </summary>
@@ -216,6 +265,11 @@ namespace SheetSync
         }
 
         public override string ToString()
+        {
+            return ToCsvString();
+        }
+        
+        public string ToCsvString()
         {
             string s = "";
 

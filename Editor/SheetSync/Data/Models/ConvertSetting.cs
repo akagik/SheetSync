@@ -46,6 +46,7 @@ namespace SheetSync.Models
             copied.executeMethodAfterImport= new List<string>(executeMethodAfterImport);
             copied.executeValidationAfterImport = new List<string>(executeValidationAfterImport);
             copied.useGSPlugin = this.useGSPlugin;
+            copied.useDirectImport = this.useDirectImport;
             copied.sheetID = this.sheetID;
             copied.gid = this.gid;
             copied.tempCsvPath = this.tempCsvPath;
@@ -203,6 +204,9 @@ namespace SheetSync.Models
         public List<string> executeValidationAfterImport;
 
         public bool useGSPlugin = true;
+        
+        [Tooltip("true の場合、Google Sheets データをファイルを経由せずに直接インポート（メモリ効率改善）")]
+        public bool useDirectImport = false;
 
 #if ODIN_INSPECTOR
         [Title("GoogleSpreadSheet Settings")] [Sirenix.OdinInspector.ShowIf("useGSPlugin")]

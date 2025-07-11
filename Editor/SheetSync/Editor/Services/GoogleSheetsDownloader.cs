@@ -45,6 +45,11 @@ namespace SheetSync.Editor.Services
         public static bool previousDownloadSuccess { get; private set; }
         
         /// <summary>
+        /// 前回のダウンロードで取得したデータ（直接インポート用）
+        /// </summary>
+        public static System.Collections.Generic.IList<System.Collections.Generic.IList<object>> previousDownloadData { get; private set; }
+        
+        /// <summary>
         /// Google スプレッドシートから CSV をダウンロードします
         /// </summary>
         /// <param name="sheet">ダウンロード対象のシート情報</param>
@@ -280,6 +285,113 @@ namespace SheetSync.Editor.Services
                     Debug.LogException(e);
                     return false;
                 }
+            }
+            catch (Google.GoogleApiException e)
+            {
+                Debug.LogError($"Google API エラー: {e.Message}");
+                Debug.LogError($"ステータスコード: {e.HttpStatusCode}");
+                Debug.LogError($"エラー詳細: {e.Error}");
+                
+                if (e.HttpStatusCode == System.Net.HttpStatusCode.Forbidden)
+                {
+                    Debug.LogError("API キーが無効か、Google Sheets API が有効になっていません。");
+                }
+                
+                return false;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"予期しないエラー: {e.Message}");
+                Debug.LogException(e);
+                return false;
+            }
+        }
+        
+        /// <summary>
+        /// Google スプレッドシートからデータを直接取得します（ファイル保存なし）
+        /// </summary>
+        /// <param name="sheet">ダウンロード対象のシート情報</param>
+        /// <returns>コルーチン</returns>
+        public static IEnumerator DownloadAsData(SheetDownloadInfo sheet)
+        {
+            previousDownloadSuccess = false;
+            previousDownloadData = null;
+            
+            // バックグラウンドでダウンロード処理を実行
+            Task<bool> downloadTask = Task.Run(async () => await DownloadAsDataAsync(sheet));
+            
+            // タスクの完了を待つ
+            while (!downloadTask.IsCompleted)
+            {
+                yield return null;
+            }
+            
+            previousDownloadSuccess = downloadTask.Result;
+        }
+        
+        /// <summary>
+        /// Google スプレッドシートからデータを直接取得します（非同期版）
+        /// </summary>
+        private static async Task<bool> DownloadAsDataAsync(SheetDownloadInfo sheet)
+        {
+            Debug.Log($"[DownloadAsDataAsync] 開始 - SheetId: {sheet.SheetId}, Gid: {sheet.Gid}");
+            
+            try
+            {
+                // API キーの取得
+                string apiKey = EditorPrefs.GetString("SheetSync_ApiKey", "");
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    Debug.LogError("API キーが設定されていません。ファイルベースのダウンロードを先に実行して API キーを設定してください。");
+                    return false;
+                }
+                
+                // Google Sheets API のサービスを作成
+                var service = new SheetsService(new BaseClientService.Initializer()
+                {
+                    ApiKey = apiKey,
+                    ApplicationName = "SheetSync"
+                });
+                
+                // シート名を取得
+                var spreadsheet = await service.Spreadsheets.Get(sheet.SheetId).ExecuteAsync();
+                string sheetName = null;
+                
+                foreach (var sheetInfo in spreadsheet.Sheets)
+                {
+                    if (sheetInfo.Properties.SheetId.ToString() == sheet.Gid)
+                    {
+                        sheetName = sheetInfo.Properties.Title;
+                        break;
+                    }
+                }
+                
+                if (string.IsNullOrEmpty(sheetName))
+                {
+                    Debug.LogError($"Gid {sheet.Gid} に対応するシートが見つかりません。");
+                    return false;
+                }
+                
+                Debug.Log($"シート名: {sheetName}");
+                
+                // データを取得
+                var range = $"{sheetName}";
+                var request = service.Spreadsheets.Values.Get(sheet.SheetId, range);
+                
+                var response = await request.ExecuteAsync();
+                
+                if (response.Values == null || response.Values.Count == 0)
+                {
+                    Debug.LogWarning("データが取得できませんでした。");
+                    return false;
+                }
+                
+                Debug.Log($"データ取得成功: {response.Values.Count} 行");
+                
+                // データを保持
+                previousDownloadData = response.Values;
+                
+                return true;
             }
             catch (Google.GoogleApiException e)
             {
