@@ -1,8 +1,8 @@
 using System;
 using UnityEngine;
-using SheetSync.Models;
+using SheetSync;
 
-namespace SheetSync.Editor.Models
+namespace SheetSync
 {
     /// <summary>
     /// ConvertSetting の表示用モデル

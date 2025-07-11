@@ -5,7 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEditor;
-using SheetSync.Models;
+using SheetSync;
 
 #if !UNITY_EDITOR
 // ダミー（このコードはエディタでのみ実行される）
@@ -15,7 +15,7 @@ using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 #endif
 
-namespace SheetSync.Editor.Services
+namespace SheetSync
 {
     /// <summary>
     /// ダウンロード対象のシート情報

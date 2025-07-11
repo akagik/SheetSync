@@ -1,6 +1,6 @@
 using System;
 
-namespace SheetSync.Editor.ViewModels
+namespace SheetSync
 {
     /// <summary>
     /// プロパティ変更通知インターフェース

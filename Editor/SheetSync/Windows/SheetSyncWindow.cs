@@ -1,9 +1,9 @@
 using System;
 using UnityEngine;
 using UnityEditor;
-using SheetSync.Editor.ViewModels;
+using SheetSync;
 
-namespace SheetSync.Editor.Windows
+namespace SheetSync
 {
     /// <summary>
     /// リファクタリングされた SheetSyncWindow

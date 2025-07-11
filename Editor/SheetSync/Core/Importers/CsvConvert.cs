@@ -1,6 +1,5 @@
 using KoheiUtils;
-using SheetSync.Models;
-using SheetSync.Data;
+using SheetSync;
 
 namespace SheetSync
 {

@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace SheetSync.Editor.Commands
+namespace SheetSync
 {
     /// <summary>
     /// コマンドインターフェース

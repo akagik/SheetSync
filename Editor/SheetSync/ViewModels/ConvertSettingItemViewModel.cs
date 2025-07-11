@@ -1,11 +1,10 @@
 using System;
 using UnityEngine;
 using UnityEditor;
-using SheetSync.Editor.Models;
-using SheetSync.Editor.Commands;
+using SheetSync;
 using KoheiUtils;
 
-namespace SheetSync.Editor.ViewModels
+namespace SheetSync
 {
     /// <summary>
     /// 個別の ConvertSetting 用ビューモデル

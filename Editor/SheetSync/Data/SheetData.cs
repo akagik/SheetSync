@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SheetSync.Data
+namespace SheetSync
 {
     /// <summary>
     /// Google Sheets のデータを直接参照するクラス

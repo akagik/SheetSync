@@ -1,4 +1,4 @@
-namespace SheetSync.Data
+namespace SheetSync
 {
     /// <summary>
     /// CSV データプロバイダーの抽象インターフェース

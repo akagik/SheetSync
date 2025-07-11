@@ -1,7 +1,7 @@
 ﻿using System;
 using KoheiUtils;
 using GlobalCCSettings = SheetSync.Models.GlobalCCSettings;
-using SheetSync.Data;
+using SheetSync;
 
 namespace SheetSync
 {

@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
-using SheetSync.Models;
+using SheetSync;
 
-namespace SheetSync.Editor.Models
+namespace SheetSync
 {
     /// <summary>
     /// ConvertSetting の取得・管理を行うリポジトリ

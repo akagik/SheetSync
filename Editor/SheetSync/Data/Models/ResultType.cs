@@ -1,6 +1,6 @@
 using System;
 
-namespace SheetSync.Models
+namespace SheetSync
 {
     [Flags]
     public enum ResultType

@@ -1,7 +1,7 @@
 using System.IO;
 using UnityEngine;
 
-namespace SheetSync.Data.Providers
+namespace SheetSync
 {
     /// <summary>
     /// ファイルベースの CSV データプロバイダー

@@ -3,7 +3,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace SheetSync.Editor.Utils
+namespace SheetSync
 {
     /// <summary>
     /// Google API の利用可能性をチェックするユーティリティ

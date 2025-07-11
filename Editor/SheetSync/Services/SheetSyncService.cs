@@ -6,10 +6,9 @@ using UnityEngine;
 using UnityEditor;
 using KoheiUtils;
 using KoheiUtils.Reflections;
-using SheetSync.Data;
-using SheetSync.Data.Providers;
+using SheetSync;
 
-namespace SheetSync.Editor.Services
+namespace SheetSync
 {
     /// <summary>
     /// SheetSync のビジネスロジックを提供するサービスクラス

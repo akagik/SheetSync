@@ -7,7 +7,7 @@ using UnityEditor;
 using Sirenix.OdinInspector;
 #endif
 
-namespace SheetSync.Models
+namespace SheetSync
 {
     [Serializable]
     [CreateAssetMenu(menuName = "SheetSync/ConverterSettings")]

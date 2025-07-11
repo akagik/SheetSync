@@ -6,8 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using SheetSync.Core.Converters;
-using SheetSync.Models;
+using SheetSync;
 using Object = UnityEngine.Object;
 
 namespace SheetSync

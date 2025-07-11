@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace SheetSync.Models
+namespace SheetSync
 {
     /// <summary>
     /// CsvConverter のグローバルな設定.

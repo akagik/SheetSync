@@ -1,4 +1,4 @@
-﻿namespace SheetSync.Core.Converters
+﻿namespace SheetSync
 {
     using UnityEngine;
     using UnityEditor;

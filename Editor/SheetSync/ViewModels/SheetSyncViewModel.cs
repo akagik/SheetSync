@@ -3,12 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections;
 using UnityEngine;
-using SheetSync.Editor.Models;
-using SheetSync.Editor.Commands;
-using SheetSync.Editor.Services;
+using SheetSync;
 using GlobalCCSettings = SheetSync.Models.GlobalCCSettings;
 
-namespace SheetSync.Editor.ViewModels
+namespace SheetSync
 {
     /// <summary>
     /// SheetSyncWindow のメインビューモデル

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace SheetSync.Data.Providers
+namespace SheetSync
 {
     /// <summary>
     /// Google Sheets API レスポンスから直接データを提供するプロバイダー

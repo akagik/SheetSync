@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using System.IO;
-using SheetSync.Models;
+using SheetSync;
 
 namespace SheetSync
 {

@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEditor;
 
-namespace SheetSync.Migration
+namespace SheetSync
 {
     /// <summary>
     /// KoheiUtils から SheetSync への一括移行ウィンドウ

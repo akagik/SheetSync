@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace SheetSync.Data
+namespace SheetSync
 {
     /// <summary>
     /// CSV データの抽象インターフェース
