@@ -317,34 +317,46 @@ namespace SheetSync.Editor.Services
             previousDownloadSuccess = false;
             previousDownloadData = null;
             
-            // バックグラウンドでダウンロード処理を実行
-            Task<bool> downloadTask = Task.Run(async () => await DownloadAsDataAsync(sheet));
+            // メインスレッドで API キーを取得
+            string apiKey = EditorPrefs.GetString("SheetSync_ApiKey", "");
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                Debug.LogError("API キーが設定されていません。ファイルベースのダウンロードを先に実行して API キーを設定してください。");
+                yield break;
+            }
             
-            // タスクの完了を待つ
+            Debug.Log($"[DownloadAsData] 開始 - SheetId: {sheet.SheetId}, Gid: {sheet.Gid}");
+            
+            // 非同期ダウンロード処理を実行
+            var downloadTask = DownloadAsDataInternalAsync(sheet, apiKey);
+            
             while (!downloadTask.IsCompleted)
             {
                 yield return null;
             }
             
-            previousDownloadSuccess = downloadTask.Result;
+            if (downloadTask.IsFaulted)
+            {
+                Debug.LogError($"ダウンロードエラー: {downloadTask.Exception?.GetBaseException().Message}");
+                previousDownloadSuccess = false;
+            }
+            else
+            {
+                previousDownloadSuccess = downloadTask.Result;
+                if (previousDownloadSuccess)
+                {
+                    Debug.Log($"データ取得成功: {previousDownloadData?.Count ?? 0} 行");
+                }
+            }
         }
         
         /// <summary>
         /// Google スプレッドシートからデータを直接取得します（非同期版）
         /// </summary>
-        private static async Task<bool> DownloadAsDataAsync(SheetDownloadInfo sheet)
+        private static async Task<bool> DownloadAsDataInternalAsync(SheetDownloadInfo sheet, string apiKey)
         {
-            Debug.Log($"[DownloadAsDataAsync] 開始 - SheetId: {sheet.SheetId}, Gid: {sheet.Gid}");
-            
             try
             {
-                // API キーの取得
-                string apiKey = EditorPrefs.GetString("SheetSync_ApiKey", "");
-                if (string.IsNullOrEmpty(apiKey))
-                {
-                    Debug.LogError("API キーが設定されていません。ファイルベースのダウンロードを先に実行して API キーを設定してください。");
-                    return false;
-                }
                 
                 // Google Sheets API のサービスを作成
                 var service = new SheetsService(new BaseClientService.Initializer()
@@ -368,11 +380,9 @@ namespace SheetSync.Editor.Services
                 
                 if (string.IsNullOrEmpty(sheetName))
                 {
-                    Debug.LogError($"Gid {sheet.Gid} に対応するシートが見つかりません。");
+                    // エラーメッセージは呼び出し元で表示
                     return false;
                 }
-                
-                Debug.Log($"シート名: {sheetName}");
                 
                 // データを取得
                 var range = $"{sheetName}";
@@ -382,35 +392,19 @@ namespace SheetSync.Editor.Services
                 
                 if (response.Values == null || response.Values.Count == 0)
                 {
-                    Debug.LogWarning("データが取得できませんでした。");
+                    // 警告メッセージは呼び出し元で表示
                     return false;
                 }
-                
-                Debug.Log($"データ取得成功: {response.Values.Count} 行");
                 
                 // データを保持
                 previousDownloadData = response.Values;
                 
                 return true;
             }
-            catch (Google.GoogleApiException e)
+            catch (Exception)
             {
-                Debug.LogError($"Google API エラー: {e.Message}");
-                Debug.LogError($"ステータスコード: {e.HttpStatusCode}");
-                Debug.LogError($"エラー詳細: {e.Error}");
-                
-                if (e.HttpStatusCode == System.Net.HttpStatusCode.Forbidden)
-                {
-                    Debug.LogError("API キーが無効か、Google Sheets API が有効になっていません。");
-                }
-                
-                return false;
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"予期しないエラー: {e.Message}");
-                Debug.LogException(e);
-                return false;
+                // エラー処理は呼び出し元で行う
+                throw;
             }
         }
         
