@@ -147,10 +147,10 @@ namespace SheetSync
                 }
 
                 // csv ファイルから読み込み
-                CsvData csv      = CsvLogic.GetValidCsvData(textAsset.text, gSettings);
-                CsvData contents = csv.Slice(gSettings.rowIndexOfContentStart);
-                Field[] fields = CsvLogic.GetFieldsFromHeader(csv, gSettings);
-                return CreateAssetsInternal(s, gSettings, fields, contents);
+                CsvData csv = CsvLogic.GetValidCsvData(textAsset.text, gSettings);
+                CsvData fileContents = csv.Slice(gSettings.rowIndexOfContentStart);
+                Field[] fileFields = CsvLogic.GetFieldsFromHeader(csv, gSettings);
+                return CreateAssetsInternal(s, gSettings, fileFields, fileContents);
             }
             
             // データプロバイダーを使用
@@ -169,10 +169,10 @@ namespace SheetSync
             
             // データプロバイダーから CSV データを取得
             ICsvData csvData = dataProvider.GetCsvData();
-            ICsvData contents = csvData.GetRowSlice(gSettings.rowIndexOfContentStart);
+            ICsvData providerContents = csvData.GetRowSlice(gSettings.rowIndexOfContentStart);
 
-            Field[] fields = CsvLogic.GetFieldsFromHeader(csvData, gSettings);
-            return CreateAssetsInternal(s, gSettings, fields, contents);
+            Field[] providerFields = CsvLogic.GetFieldsFromHeader(csvData, gSettings);
+            return CreateAssetsInternal(s, gSettings, providerFields, providerContents);
         }
         
         private static object CreateAssetsInternal(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings, Field[] fields, object csvContents)
