@@ -4,7 +4,7 @@ using System.Linq;
 using System.Collections;
 using UnityEngine;
 using SheetSync;
-using GlobalCCSettings = SheetSync.Models.GlobalCCSettings;
+using GlobalCCSettings = SheetSync.GlobalCCSettings;
 
 namespace SheetSync
 {

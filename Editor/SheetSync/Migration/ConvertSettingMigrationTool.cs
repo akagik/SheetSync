@@ -7,7 +7,7 @@ using UnityEditor;
 namespace SheetSync
 {
     /// <summary>
-    /// KoheiUtils.ConvertSetting から SheetSync.Models.ConvertSetting への移行ツール
+    /// KoheiUtils.ConvertSetting から SheetSync.ConvertSetting への移行ツール
     /// 
     /// このツールは、KoheiUtils パッケージで使用されていた ConvertSetting および GlobalCCSettings の
     /// ScriptableObject アセットを、SheetSync パッケージの同等のアセットに変換します。
@@ -59,7 +59,7 @@ namespace SheetSync
                     "OK");
                 
                 // 新しいアセットを選択
-                var newAsset = AssetDatabase.LoadAssetAtPath<SheetSync.Models.ConvertSetting>(newPath);
+                var newAsset = AssetDatabase.LoadAssetAtPath<SheetSync.ConvertSetting>(newPath);
                 if (newAsset != null)
                 {
                     Selection.activeObject = newAsset;
@@ -109,7 +109,7 @@ namespace SheetSync
                     "OK");
                 
                 // 新しいアセットを選択
-                var newAsset = AssetDatabase.LoadAssetAtPath<SheetSync.Models.GlobalCCSettings>(newPath);
+                var newAsset = AssetDatabase.LoadAssetAtPath<SheetSync.GlobalCCSettings>(newPath);
                 if (newAsset != null)
                 {
                     Selection.activeObject = newAsset;
@@ -129,7 +129,7 @@ namespace SheetSync
             try
             {
                 // SheetSync版の新しいインスタンスを作成
-                var newSetting = ScriptableObject.CreateInstance<SheetSync.Models.ConvertSetting>();
+                var newSetting = ScriptableObject.CreateInstance<SheetSync.ConvertSetting>();
                 
                 // SerializedObject を使用して値をコピー
                 var sourceObj = new SerializedObject(koheiUtilsAsset);
@@ -175,7 +175,7 @@ namespace SheetSync
                 var executeAfterImportProp = sourceObj.FindProperty("executeAfterImport");
                 if (executeAfterImportProp != null && executeAfterImportProp.isArray)
                 {
-                    var targetList = new List<SheetSync.Models.ConvertSetting>();
+                    var targetList = new List<SheetSync.ConvertSetting>();
                     for (int i = 0; i < executeAfterImportProp.arraySize; i++)
                     {
                         var element = executeAfterImportProp.GetArrayElementAtIndex(i);
@@ -210,7 +210,7 @@ namespace SheetSync
             try
             {
                 // SheetSync版の新しいインスタンスを作成
-                var newSettings = ScriptableObject.CreateInstance<SheetSync.Models.GlobalCCSettings>();
+                var newSettings = ScriptableObject.CreateInstance<SheetSync.GlobalCCSettings>();
                 
                 // SerializedObject を使用して値をコピー
                 var sourceObj = new SerializedObject(koheiUtilsAsset);

@@ -64,7 +64,7 @@ namespace SheetSync
             return classData;
         }
 
-        public static string GenerateTableClass(SheetSync.Models.ConvertSetting setting, string tableClassName, Field[] keys)
+        public static string GenerateTableClass(SheetSync.ConvertSetting setting, string tableClassName, Field[] keys)
         {
             string className = setting.className;
 
@@ -136,7 +136,7 @@ namespace SheetSync
             return ta.text;
         }
 
-        public static int[] FindKeyIndexes(SheetSync.Models.ConvertSetting setting, Field[] fields)
+        public static int[] FindKeyIndexes(SheetSync.ConvertSetting setting, Field[] fields)
         {
             List<int> indexes = new List<int>();
 

@@ -9,11 +9,11 @@ namespace SheetSync
     using System.Collections.Generic;
     using UnityEngine;
     using UnityEditor;
-    using ResultType = SheetSync.Models.ResultType;
+    using ResultType = SheetSync.ResultType;
 
     public class CsvConvert
     {
-        public static void GenerateCode(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings)
+        public static void GenerateCode(SheetSync.ConvertSetting s, SheetSync.GlobalCCSettings gSettings)
         {
             string settingPath = s.GetDirectoryPath();
             string    csvPath   = CCLogic.GetFilePathRelativesToAssets(settingPath, s.GetCsvPath(gSettings));
@@ -100,12 +100,12 @@ namespace SheetSync
             AssetDatabase.Refresh();
         }
 
-        public static object CreateAssets(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings)
+        public static object CreateAssets(SheetSync.ConvertSetting s, SheetSync.GlobalCCSettings gSettings)
         {
             return CreateAssets(s, gSettings, null);
         }
         
-        public static object CreateAssets(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings, ICsvDataProvider dataProvider)
+        public static object CreateAssets(SheetSync.ConvertSetting s, SheetSync.GlobalCCSettings gSettings, ICsvDataProvider dataProvider)
         {
             // データプロバイダーが提供されていない場合は従来のファイルベース処理
             if (dataProvider == null)
@@ -174,7 +174,7 @@ namespace SheetSync
             return CreateAssetsInternal(s, gSettings, providerFields, providerContents);
         }
         
-        private static object CreateAssetsInternal(SheetSync.Models.ConvertSetting s, SheetSync.Models.GlobalCCSettings gSettings, Field[] fields, object csvContents)
+        private static object CreateAssetsInternal(SheetSync.ConvertSetting s, SheetSync.GlobalCCSettings gSettings, Field[] fields, object csvContents)
         {
             string settingPath = s.GetDirectoryPath();
 

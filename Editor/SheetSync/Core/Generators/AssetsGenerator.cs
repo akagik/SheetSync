@@ -13,7 +13,7 @@ namespace SheetSync
 {
     public class AssetsGenerator
     {
-        private SheetSync.Models.ConvertSetting setting;
+        private SheetSync.ConvertSetting setting;
         private Type[] customAssetTypes;
         private HashSet<Type> customAssetTypeSet;
 
@@ -47,7 +47,7 @@ namespace SheetSync
 
         public int contentRowCount => content.row;
 
-        public AssetsGenerator(SheetSync.Models.ConvertSetting _setting, Field[] _fields, CsvData _content)
+        public AssetsGenerator(SheetSync.ConvertSetting _setting, Field[] _fields, CsvData _content)
         {
             setting = _setting;
             fields = _fields;
@@ -198,7 +198,7 @@ namespace SheetSync
             return true;
         }
         
-        public ResultType CreateCsvAssetAt(int i, SheetSync.Models.GlobalCCSettings gSettings)
+        public ResultType CreateCsvAssetAt(int i, SheetSync.GlobalCCSettings gSettings)
         {
             ResultType resultType = ResultType.None;
             

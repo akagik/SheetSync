@@ -46,7 +46,7 @@ namespace SheetSync
         /// 3. アセットの作成
         /// 4. アフターインポート処理（追加のインポート、メソッド実行、バリデーション）
         /// </remarks>
-        public static IEnumerator ExecuteImport(SheetSync.Models.ConvertSetting settings)
+        public static IEnumerator ExecuteImport(SheetSync.ConvertSetting settings)
         {
             Debug.Log($"[ExecuteImport] 開始 - {settings.className}");
             
@@ -80,7 +80,7 @@ namespace SheetSync
             }
 
             // データプロバイダーを取得
-            SheetSync.Models.GlobalCCSettings gSettings = SheetSync.CCLogic.GetGlobalSettings();
+            SheetSync.GlobalCCSettings gSettings = SheetSync.CCLogic.GetGlobalSettings();
             ICsvDataProvider dataProvider = GetCsvDataProvider(settings, gSettings);
             CreateAssetsJob createAssetsJob = new CreateAssetsJob(settings, dataProvider);
             object generatedAssets = null;
@@ -184,9 +184,9 @@ namespace SheetSync
         /// Google スプレッドシートから CSV データをダウンロードし、
         /// 指定されたパスに保存します。GSPlugin を使用して通信を行います。
         /// </remarks>
-        public static IEnumerator ExecuteDownload(SheetSync.Models.ConvertSetting settings)
+        public static IEnumerator ExecuteDownload(SheetSync.ConvertSetting settings)
         {
-            SheetSync.Models.GlobalCCSettings gSettings = SheetSync.CCLogic.GetGlobalSettings();
+            SheetSync.GlobalCCSettings gSettings = SheetSync.CCLogic.GetGlobalSettings();
 
             string csvPath = settings.GetCsvPath(gSettings);
             if (string.IsNullOrWhiteSpace(csvPath))
@@ -249,7 +249,7 @@ namespace SheetSync
         /// Google Sheets API からデータを取得し、メモリ上に保持します。
         /// ファイル保存をバイパスしてメモリ効率を向上させます。
         /// </remarks>
-        public static IEnumerator ExecuteDirectDownload(SheetSync.Models.ConvertSetting settings)
+        public static IEnumerator ExecuteDirectDownload(SheetSync.ConvertSetting settings)
         {
             Debug.Log($"[ExecuteDirectDownload] 直接インポート開始 - {settings.className}");
             
@@ -289,13 +289,13 @@ namespace SheetSync
         /// 各 ConvertSetting に対して順番にコード生成を実行し、
         /// 進捗状況を表示します。エラーが発生しても処理を継続します。
         /// </remarks>
-        public static void GenerateAllCode(SheetSync.Models.ConvertSetting[] settings, SheetSync.Models.GlobalCCSettings globalSettings)
+        public static void GenerateAllCode(SheetSync.ConvertSetting[] settings, SheetSync.GlobalCCSettings globalSettings)
         {
             int i = 0;
 
             try
             {
-                foreach (SheetSync.Models.ConvertSetting s in settings)
+                foreach (SheetSync.ConvertSetting s in settings)
                 {
                     ShowProgress(s.className, (float)i / settings.Length, i, settings.Length);
                     CsvConvert.GenerateCode(s, globalSettings);
@@ -322,7 +322,7 @@ namespace SheetSync
         /// 各 ConvertSetting に対して ScriptableObject アセットを作成します。
         /// エラーが発生しても処理を継続します。
         /// </remarks>
-        public static void CreateAllAssets(SheetSync.Models.ConvertSetting[] settings, SheetSync.Models.GlobalCCSettings globalSettings)
+        public static void CreateAllAssets(SheetSync.ConvertSetting[] settings, SheetSync.GlobalCCSettings globalSettings)
         {
             try
             {
@@ -350,7 +350,7 @@ namespace SheetSync
         /// 指定された ConvertSetting に対してコード生成を実行し、
         /// 進捗状況を表示します。
         /// </remarks>
-        public static void GenerateOneCode(SheetSync.Models.ConvertSetting settings, SheetSync.Models.GlobalCCSettings globalSettings)
+        public static void GenerateOneCode(SheetSync.ConvertSetting settings, SheetSync.GlobalCCSettings globalSettings)
         {
             ShowProgress(settings.className, 0, 0, 1);
 
@@ -400,7 +400,7 @@ namespace SheetSync
         /// <param name="settings">変換設定</param>
         /// <param name="globalSettings">グローバル設定</param>
         /// <returns>ICsvDataProvider インスタンス</returns>
-        public static ICsvDataProvider GetCsvDataProvider(SheetSync.Models.ConvertSetting settings, SheetSync.Models.GlobalCCSettings globalSettings)
+        public static ICsvDataProvider GetCsvDataProvider(SheetSync.ConvertSetting settings, SheetSync.GlobalCCSettings globalSettings)
         {
             if (settings.useDirectImport && settings.useGSPlugin && directImportData != null)
             {

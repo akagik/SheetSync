@@ -7,16 +7,16 @@ namespace SheetSync
 {
     public class CreateAssetsJob
     {
-        public SheetSync.Models.ConvertSetting settings;
+        public SheetSync.ConvertSetting settings;
         private ICsvDataProvider dataProvider;
         // public string settingPath => settings.GetDirectoryPath();
 
-        public CreateAssetsJob(SheetSync.Models.ConvertSetting settings)
+        public CreateAssetsJob(SheetSync.ConvertSetting settings)
         {
             this.settings    = settings;
         }
         
-        public CreateAssetsJob(SheetSync.Models.ConvertSetting settings, ICsvDataProvider dataProvider)
+        public CreateAssetsJob(SheetSync.ConvertSetting settings, ICsvDataProvider dataProvider)
         {
             this.settings = settings;
             this.dataProvider = dataProvider;
@@ -24,7 +24,7 @@ namespace SheetSync
 
         public object Execute()
         {
-            SheetSync.Models.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
+            SheetSync.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
 
             object generated = null;
             

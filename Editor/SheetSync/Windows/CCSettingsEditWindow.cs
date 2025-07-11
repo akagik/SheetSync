@@ -18,7 +18,7 @@ namespace SheetSync
         public bool   isDictionary;
 
 //        string                       settingPath;
-        SheetSync.Models.ConvertSetting settings;
+        SheetSync.ConvertSetting settings;
 
         private bool createNew;
         private string newAssetDir;
@@ -30,7 +30,7 @@ namespace SheetSync
             return window;
         }
 
-        public void SetSettings(SheetSync.Models.ConvertSetting setting)
+        public void SetSettings(SheetSync.ConvertSetting setting)
         {
             this.settings = setting;
             this.createNew = false;
@@ -42,7 +42,7 @@ namespace SheetSync
             isDictionary = setting.isDictionary;
         }
         
-        public void SetNewSettings(SheetSync.Models.ConvertSetting setting, string newAssetDir)
+        public void SetNewSettings(SheetSync.ConvertSetting setting, string newAssetDir)
         {
             this.settings = setting;
             this.createNew = true;

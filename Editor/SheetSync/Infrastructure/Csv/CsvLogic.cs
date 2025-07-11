@@ -1,13 +1,13 @@
 ﻿using System;
 using KoheiUtils;
-using GlobalCCSettings = SheetSync.Models.GlobalCCSettings;
+using GlobalCCSettings = SheetSync.GlobalCCSettings;
 using SheetSync;
 
 namespace SheetSync
 {
     public static class CsvLogic
     {
-        public static CsvData GetValidCsvData(string csvText, SheetSync.Models.GlobalCCSettings gSettings)
+        public static CsvData GetValidCsvData(string csvText, SheetSync.GlobalCCSettings gSettings)
         {
             var csvAsList = CsvParser.ReadAsList(csvText);
 

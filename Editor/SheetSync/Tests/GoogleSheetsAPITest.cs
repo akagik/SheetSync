@@ -3,7 +3,7 @@ using System;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEditor;
-using SheetSync.Editor.Utils;
+using SheetSync;
 
 // Google API が利用可能な場合のみ using
 #if !UNITY_EDITOR
@@ -14,7 +14,7 @@ using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 #endif
 
-namespace SheetSync.Editor.Tests
+namespace SheetSync.Tests
 {
     /// <summary>
     /// Google Sheets API v4 の単体テストクラス
