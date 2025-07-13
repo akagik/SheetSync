@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using UnityEngine;
 using UnityEditor;
 using SheetSync.Services.Update;
@@ -6,45 +7,33 @@ using SheetSync.Services.Update;
 namespace SheetSync.UI.Windows
 {
     /// <summary>
-    /// スプレッドシート更新機能のUIウィンドウ（MVP版）
+    /// スプレッドシート読み取り機能のUIウィンドウ（APIキー対応）
     /// </summary>
-    public class SheetUpdateWindow : EditorWindow
+    public class SheetReadWindow : EditorWindow
     {
         private ConvertSetting _selectedSetting;
         private string _searchFieldName = "humanId";
         private string _searchValue = "1";
-        private string _updateFieldName = "name";
-        private string _updateValue = "Tanaka";
         private bool _isProcessing = false;
         private string _lastResultMessage = "";
+        private Vector2 _scrollPosition;
         
-        [MenuItem("Tools/SheetSync/Update Records")]
+        [MenuItem("Tools/SheetSync/Read Records (API Key)")]
         public static void ShowWindow()
         {
-            var window = GetWindow<SheetUpdateWindow>("SheetSync Update");
-            window.minSize = new Vector2(400, 300);
+            var window = GetWindow<SheetReadWindow>("SheetSync Read");
+            window.minSize = new Vector2(500, 400);
         }
         
         private void OnGUI()
         {
-            EditorGUILayout.LabelField("Sheet Update Tool (MVP)", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Sheet Read Tool", EditorStyles.boldLabel);
             EditorGUILayout.Space();
             
-            // API制限の警告を表示
+            // API機能の説明
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.LabelField("⚠️ 重要な制限事項", EditorStyles.boldLabel);
-            EditorGUILayout.LabelField("Google Sheets APIの仕様により、APIキーでは読み取りのみ可能です。", EditorStyles.wordWrappedLabel);
-            EditorGUILayout.LabelField("書き込み（更新）にはOAuth2認証が必要です。", EditorStyles.wordWrappedLabel);
-            EditorGUILayout.Space(5);
-            if (GUILayout.Button("詳細を確認"))
-            {
-                var docPath = "Packages/com.kc-works.sheet-sync/Documentation/IMPORTANT_API_LIMITATION.md";
-                var asset = AssetDatabase.LoadAssetAtPath<TextAsset>(docPath);
-                if (asset != null)
-                {
-                    EditorUtility.OpenWithDefaultApp(AssetDatabase.GetAssetPath(asset));
-                }
-            }
+            EditorGUILayout.LabelField("✅ この機能はAPIキーで動作します", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("スプレッドシートから特定の行を検索して読み取ることができます。", EditorStyles.wordWrappedLabel);
             EditorGUILayout.EndVertical();
             
             EditorGUILayout.Space();
@@ -75,27 +64,16 @@ namespace SheetSync.UI.Windows
             EditorGUILayout.LabelField("Field:", GUILayout.Width(50));
             _searchFieldName = EditorGUILayout.TextField(_searchFieldName, GUILayout.Width(100));
             EditorGUILayout.LabelField("=", GUILayout.Width(20));
-            _searchValue = EditorGUILayout.TextField(_searchValue, GUILayout.Width(100));
-            EditorGUILayout.EndHorizontal();
-            
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("更新内容", EditorStyles.boldLabel);
-            
-            // 更新内容入力
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Field:", GUILayout.Width(50));
-            _updateFieldName = EditorGUILayout.TextField(_updateFieldName, GUILayout.Width(100));
-            EditorGUILayout.LabelField("→", GUILayout.Width(20));
-            _updateValue = EditorGUILayout.TextField(_updateValue, GUILayout.Width(150));
+            _searchValue = EditorGUILayout.TextField(_searchValue);
             EditorGUILayout.EndHorizontal();
             
             EditorGUILayout.Space();
             
             // 実行ボタン
             EditorGUI.BeginDisabledGroup(_isProcessing);
-            if (GUILayout.Button("更新を実行", GUILayout.Height(30)))
+            if (GUILayout.Button("検索して読み取り", GUILayout.Height(30)))
             {
-                ExecuteUpdate();
+                ExecuteRead();
             }
             EditorGUI.EndDisabledGroup();
             
@@ -103,20 +81,22 @@ namespace SheetSync.UI.Windows
             if (!string.IsNullOrEmpty(_lastResultMessage))
             {
                 EditorGUILayout.Space();
-                EditorGUILayout.HelpBox(_lastResultMessage, MessageType.Info);
+                EditorGUILayout.LabelField("結果:", EditorStyles.boldLabel);
+                _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition, GUILayout.ExpandHeight(true));
+                EditorGUILayout.TextArea(_lastResultMessage, EditorStyles.textArea, GUILayout.ExpandHeight(true));
+                EditorGUILayout.EndScrollView();
             }
             
             // サンプル表示
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("使用例:", EditorStyles.boldLabel);
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField("使用例:", EditorStyles.boldLabel);
             EditorGUILayout.LabelField("検索: humanId = 1");
-            EditorGUILayout.LabelField("更新: name → \"Tanaka\"");
-            EditorGUILayout.LabelField("結果: humanId=1の行のnameフィールドが更新されます");
+            EditorGUILayout.LabelField("結果: humanId=1の行のすべてのデータが表示されます");
             EditorGUILayout.EndVertical();
         }
         
-        private async void ExecuteUpdate()
+        private async void ExecuteRead()
         {
             _isProcessing = true;
             _lastResultMessage = "";
@@ -127,16 +107,14 @@ namespace SheetSync.UI.Windows
                 var query = new SimpleUpdateQuery<object>
                 {
                     FieldName = _searchFieldName,
-                    SearchValue = ParseValue(_searchValue),
-                    UpdateFieldName = _updateFieldName,
-                    UpdateValue = ParseValue(_updateValue)
+                    SearchValue = ParseValue(_searchValue)
                 };
                 
                 // サービスを作成して実行
-                SheetUpdateService service;
+                SheetReadService service;
                 try
                 {
-                    service = new SheetUpdateService(_selectedSetting);
+                    service = new SheetReadService(_selectedSetting);
                 }
                 catch (InvalidOperationException ex)
                 {
@@ -144,28 +122,32 @@ namespace SheetSync.UI.Windows
                     return;
                 }
                 
-                var result = await service.UpdateSingleRowAsync(query);
+                var result = await service.SearchAndReadAsync(query);
                 
                 // 結果を表示
                 if (result.Success)
                 {
-                    _lastResultMessage = $"更新成功！\n" +
-                                       $"更新行数: {result.UpdatedRowCount}\n" +
-                                       $"処理時間: {result.ElapsedMilliseconds}ms";
+                    var sb = new StringBuilder();
+                    sb.AppendLine($"検索成功！");
+                    sb.AppendLine($"見つかった行数: {result.TotalRowsFound}");
+                    sb.AppendLine($"処理時間: {result.ElapsedMilliseconds}ms");
+                    sb.AppendLine();
                     
-                    if (result.UpdatedRows.Count > 0)
+                    foreach (var row in result.FoundRows)
                     {
-                        var row = result.UpdatedRows[0];
-                        _lastResultMessage += $"\n\nRow {row.RowNumber}:";
-                        foreach (var change in row.Changes)
+                        sb.AppendLine($"=== Row {row.RowNumber} ===");
+                        foreach (var kvp in row.Data)
                         {
-                            _lastResultMessage += $"\n  {change.Key}: \"{change.Value.OldValue}\" → \"{change.Value.NewValue}\"";
+                            sb.AppendLine($"  {kvp.Key}: {kvp.Value}");
                         }
+                        sb.AppendLine();
                     }
+                    
+                    _lastResultMessage = sb.ToString();
                 }
                 else
                 {
-                    _lastResultMessage = $"更新失敗: {result.ErrorMessage}";
+                    _lastResultMessage = $"読み取り失敗: {result.ErrorMessage}";
                     Debug.LogError(_lastResultMessage);
                 }
             }
