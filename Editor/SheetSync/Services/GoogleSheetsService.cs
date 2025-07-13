@@ -307,7 +307,7 @@ namespace SheetSync
         /// </summary>
         /// <param name="sheet">ダウンロード対象のシート情報</param>
         /// <returns>コルーチン</returns>
-        public static IEnumerator DownloadAsData(SheetDownloadInfo sheet)
+        public static IEnumerator DownloadAsData(SheetDownloadInfo sheet, bool verbose = false)
         {
             previousDownloadSuccess = false;
             previousDownloadData = null;
@@ -321,8 +321,11 @@ namespace SheetSync
                 Debug.LogError(previousError);
                 yield break;
             }
-            
-            Debug.Log($"[DownloadAsData] 開始 - SheetId: {sheet.SheetId}, Gid: {sheet.Gid}");
+
+            if (verbose)
+            {
+                Debug.Log($"[DownloadAsData] 開始 - SheetId: {sheet.SheetId}, Gid: {sheet.Gid}");
+            }
             
             // 非同期ダウンロード処理を実行
             var downloadTask = DownloadAsDataInternalAsync(sheet, apiKey);
@@ -342,7 +345,7 @@ namespace SheetSync
             else
             {
                 previousDownloadSuccess = downloadTask.Result;
-                if (previousDownloadSuccess)
+                if (previousDownloadSuccess && verbose)
                 {
                     Debug.Log($"データ取得成功: {previousDownloadData?.Count ?? 0} 行");
                 }
@@ -370,7 +373,6 @@ namespace SheetSync
                 
                 foreach (var sheetInfo in spreadsheet.Sheets)
                 {
-                    Debug.Log(sheetInfo.Properties.Title + " - " + sheetInfo.Properties.SheetId);
                     if (sheetInfo.Properties.SheetId.ToString() == sheet.Gid)
                     {
                         sheetName = sheetInfo.Properties.Title;

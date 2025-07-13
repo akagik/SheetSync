@@ -49,8 +49,6 @@ namespace SheetSync
         /// </remarks>
         public static IEnumerator ExecuteImport(SheetSync.ConvertSetting settings)
         {
-            Debug.Log($"[ExecuteImport] 開始 - {settings.className}");
-            
             downloadSuccess = false;
             directImportData = null;
             
@@ -69,8 +67,6 @@ namespace SheetSync
                 Debug.LogError($"[ExecuteImport] ダウンロード失敗 - {settings.className}");
                 yield break;
             }
-            
-            Debug.Log($"[ExecuteImport] ダウンロード成功 - {settings.className}");
             
             // 直接インポートの場合はリフレッシュ不要
             if (!settings.useDirectImport)
@@ -283,7 +279,7 @@ namespace SheetSync
         /// </remarks>
         public static IEnumerator ExecuteDirectDownload(SheetSync.ConvertSetting settings)
         {
-            Debug.Log($"[ExecuteDirectDownload] 直接インポート開始 - {settings.className}");
+            // Debug.Log($"[ExecuteDirectDownload] 直接インポート開始 - {settings.className}");
             
             // SheetDownloadInfo を作成
             var sheetInfo = new SheetDownloadInfo(
@@ -293,7 +289,7 @@ namespace SheetSync
             );
 
             // Google Sheets API v4 を使用して直接データ取得
-            yield return GoogleSheetsDownloader.DownloadAsData(sheetInfo);
+            yield return GoogleSheetsDownloader.DownloadAsData(sheetInfo, verbose: settings.verbose);
 
             // 成功判定とデータ取得
             if (GoogleSheetsDownloader.previousDownloadSuccess && 
@@ -301,7 +297,11 @@ namespace SheetSync
             {
                 directImportData = GoogleSheetsDownloader.previousDownloadData;
                 downloadSuccess = true;
-                Debug.Log($"[ExecuteDirectDownload] データ取得成功 - 行数: {directImportData.Count}");
+
+                if (settings.verbose)
+                {
+                    Debug.Log($"[ExecuteDirectDownload] データ取得成功 - 行数: {directImportData.Count}");
+                }
             }
             else
             {
