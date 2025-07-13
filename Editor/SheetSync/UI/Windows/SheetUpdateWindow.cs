@@ -114,7 +114,17 @@ namespace SheetSync.UI.Windows
                 };
                 
                 // サービスを作成して実行
-                var service = new SheetUpdateService(_selectedSetting);
+                SheetUpdateService service;
+                try
+                {
+                    service = new SheetUpdateService(_selectedSetting);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _lastResultMessage = $"初期化エラー: {ex.Message}";
+                    return;
+                }
+                
                 var result = await service.UpdateSingleRowAsync(query);
                 
                 // 結果を表示

@@ -30,22 +30,25 @@ namespace SheetSync.Services.Update
             
             if (string.IsNullOrEmpty(_apiKey))
             {
-                // APIキーの入力を促す
-                RequestApiKey();
+                // APIキーの入力を促す（1回のみ）
+                bool apiKeySet = RequestApiKey();
                 
-                // 再度取得
-                _apiKey = EditorPrefs.GetString("SheetSync_ApiKey", "");
+                if (apiKeySet)
+                {
+                    // 再度取得
+                    _apiKey = EditorPrefs.GetString("SheetSync_ApiKey", "");
+                }
                 
                 if (string.IsNullOrEmpty(_apiKey))
                 {
-                    throw new InvalidOperationException("APIキーが設定されていません。");
+                    throw new InvalidOperationException("APIキーが設定されていません。Google Sheets機能を使用するには、有効なAPIキーが必要です。");
                 }
             }
             
             InitializeService();
         }
         
-        private void RequestApiKey()
+        private bool RequestApiKey()
         {
             int dialogResult = EditorUtility.DisplayDialogComplex(
                 "Google Sheets API キーが必要です",
@@ -58,21 +61,59 @@ namespace SheetSync.Services.Update
             
             if (dialogResult == 1) // キャンセル
             {
-                return;
+                return false;
             }
             else if (dialogResult == 2) // ヘルプ
             {
                 Application.OpenURL("https://console.cloud.google.com/apis/credentials");
-                return;
+                // ヘルプを開いた後も入力を促す
+                return RequestApiKeyInput();
+            }
+            else // 入力する
+            {
+                return RequestApiKeyInput();
+            }
+        }
+        
+        private bool RequestApiKeyInput()
+        {
+            const int maxRetries = 3;
+            int retryCount = 0;
+            
+            while (retryCount < maxRetries)
+            {
+                string apiKey = EditorInputDialog.Show(
+                    "API キー入力", 
+                    retryCount == 0 
+                        ? "Google API キーを入力してください:" 
+                        : $"APIキーは空にできません。入力してください (試行 {retryCount + 1}/{maxRetries}):", 
+                    "");
+                
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    EditorPrefs.SetString("SheetSync_ApiKey", apiKey);
+                    Debug.Log("APIキーを保存しました。");
+                    return true;
+                }
+                
+                retryCount++;
+                
+                if (retryCount < maxRetries)
+                {
+                    bool retry = EditorUtility.DisplayDialog(
+                        "APIキーが入力されていません",
+                        "APIキーは必須です。再度入力しますか？",
+                        "はい",
+                        "いいえ");
+                    
+                    if (!retry)
+                    {
+                        break;
+                    }
+                }
             }
             
-            // API キーを入力ダイアログで取得
-            string apiKey = EditorInputDialog.Show("API キー入力", "Google API キーを入力してください:", "");
-            if (!string.IsNullOrEmpty(apiKey))
-            {
-                EditorPrefs.SetString("SheetSync_ApiKey", apiKey);
-                Debug.Log("APIキーを保存しました。");
-            }
+            return false;
         }
         
         private void InitializeService()
