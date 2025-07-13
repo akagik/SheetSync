@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using SheetSync;
 using SheetSync.Services.Update;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace SheetSync.Tests.Update
+namespace Kohei.SheetSync.Tests.Editor.Update
 {
     /// <summary>
     /// SheetUpdateServiceのテストクラス
