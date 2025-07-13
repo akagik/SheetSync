@@ -33,6 +33,11 @@ namespace SheetSync
         public static System.Collections.Generic.IList<System.Collections.Generic.IList<object>> previousDownloadData { get; private set; }
         
         /// <summary>
+        /// 前回のダウンロードで発生したエラーの詳細
+        /// </summary>
+        public static string previousError { get; private set; }
+        
+        /// <summary>
         /// Google スプレッドシートから CSV をダウンロードします
         /// </summary>
         /// <param name="sheet">ダウンロード対象のシート情報</param>
@@ -41,10 +46,12 @@ namespace SheetSync
         public static IEnumerator DownloadAsCsv(SheetDownloadInfo sheet, string outputDirectory)
         {
             previousDownloadSuccess = false;
+            previousError = null;
             
             // Google API の利用可能性をチェック
             if (!GoogleApiChecker.CheckAndWarn())
             {
+                previousError = "Google Sheets APIが利用できません。Google.Apis.Sheets.v4 パッケージがインストールされているか確認してください。";
                 yield break;
             }
             
@@ -64,11 +71,13 @@ namespace SheetSync
                 
                 if (dialogResult == 1) // キャンセル
                 {
+                    previousError = "APIキーの入力がキャンセルされました。";
                     yield break;
                 }
                 else if (dialogResult == 2) // ヘルプ
                 {
                     Application.OpenURL("https://console.cloud.google.com/apis/credentials");
+                    previousError = "ヘルプページを開きました。APIキーを取得してから再度お試しください。";
                     yield break;
                 }
                 
@@ -80,6 +89,7 @@ namespace SheetSync
                 }
                 else
                 {
+                    previousError = "APIキーが入力されませんでした。";
                     yield break;
                 }
             }
@@ -94,10 +104,12 @@ namespace SheetSync
             
             if (downloadTask.IsFaulted)
             {
-                Debug.LogError($"ダウンロードエラー: {downloadTask.Exception?.GetBaseException().Message}");
+                var baseException = downloadTask.Exception?.GetBaseException();
+                previousError = $"ダウンロードエラー: {baseException?.Message}";
+                Debug.LogError(previousError);
                 EditorUtility.DisplayDialog(
                     "ダウンロードエラー",
-                    $"スプレッドシートのダウンロードに失敗しました:\n{downloadTask.Exception?.GetBaseException().Message}",
+                    $"スプレッドシートのダウンロードに失敗しました:\n{baseException?.Message}",
                     "OK"
                 );
             }
@@ -299,12 +311,14 @@ namespace SheetSync
         {
             previousDownloadSuccess = false;
             previousDownloadData = null;
+            previousError = null;
             
             // メインスレッドで API キーを取得
             string apiKey = EditorPrefs.GetString("SheetSync_ApiKey", "");
             if (string.IsNullOrEmpty(apiKey))
             {
-                Debug.LogError("API キーが設定されていません。ファイルベースのダウンロードを先に実行して API キーを設定してください。");
+                previousError = "API キーが設定されていません。ファイルベースのダウンロードを先に実行して API キーを設定してください。";
+                Debug.LogError(previousError);
                 yield break;
             }
             
@@ -320,7 +334,9 @@ namespace SheetSync
             
             if (downloadTask.IsFaulted)
             {
-                Debug.LogError($"ダウンロードエラー: {downloadTask.Exception?.GetBaseException().Message}");
+                var baseException = downloadTask.Exception?.GetBaseException();
+                previousError = $"ダウンロードエラー: {baseException?.Message}";
+                Debug.LogError(previousError);
                 previousDownloadSuccess = false;
             }
             else
@@ -354,6 +370,7 @@ namespace SheetSync
                 
                 foreach (var sheetInfo in spreadsheet.Sheets)
                 {
+                    Debug.Log(sheetInfo.Properties.Title + " - " + sheetInfo.Properties.SheetId);
                     if (sheetInfo.Properties.SheetId.ToString() == sheet.Gid)
                     {
                         sheetName = sheetInfo.Properties.Title;
@@ -363,7 +380,7 @@ namespace SheetSync
                 
                 if (string.IsNullOrEmpty(sheetName))
                 {
-                    // エラーメッセージは呼び出し元で表示
+                    previousError = $"GID '{sheet.Gid}' に対応するシートが見つかりません。スプレッドシート内のシートのGIDを確認してください。";
                     return false;
                 }
                 
@@ -375,7 +392,7 @@ namespace SheetSync
                 
                 if (response.Values == null || response.Values.Count == 0)
                 {
-                    // 警告メッセージは呼び出し元で表示
+                    previousError = $"スプレッドシート '{sheetName}' にデータがありません。スプレッドシートが空であるか、読み取り範囲にデータが存在しない可能性があります。";
                     return false;
                 }
                 
@@ -384,9 +401,31 @@ namespace SheetSync
                 
                 return true;
             }
-            catch (Exception)
+            catch (Google.GoogleApiException e)
             {
-                // エラー処理は呼び出し元で行う
+                // Google API エラーの詳細を保存
+                if (e.HttpStatusCode == System.Net.HttpStatusCode.Forbidden)
+                {
+                    previousError = $"Google API アクセスエラー: APIキーが無効か、Sheets APIが有効化されていません。\nAPIキー: {apiKey.Substring(0, Math.Min(8, apiKey.Length))}...";
+                }
+                else if (e.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    previousError = $"スプレッドシートが見つかりません。\nSheetID: {sheet.SheetId}\nスプレッドシートが公開されているか確認してください。";
+                }
+                else if (e.HttpStatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    previousError = "Google Sheets APIのレート制限に達しました。しばらく待ってから再試行してください。";
+                }
+                else
+                {
+                    previousError = $"Google API エラー ({e.HttpStatusCode}): {e.Message}";
+                }
+                throw;
+            }
+            catch (Exception e)
+            {
+                // その他のエラー
+                previousError = $"予期しないエラー: {e.GetType().Name} - {e.Message}";
                 throw;
             }
         }

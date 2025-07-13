@@ -15,6 +15,10 @@ namespace SheetSync
     {
         const string FIELD_FORMAT = "    public {0} {1};\n";
         public static readonly string ROWS = "rows";
+        
+        // パッケージ名を定数として定義
+        private const string PACKAGE_NAME = "com.kc-works.sheet-sync";
+        private const string TEMPLATE_BASE_PATH = "Editor/SheetSync/Core/Generation/Templates/Templates/";
 
         public static string GenerateClass(string name, Field[] fields, bool isPureClass)
         {
@@ -120,20 +124,75 @@ namespace SheetSync
 
         public static string LoadNoKeyListTableTemplate()
         {
-            TextAsset ta = EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_nokey_list_table\" t:TextAsset");
-            return ta.text;
+            return LoadTemplateFile("template_nokey_list_table.txt");
         }
 
         public static string LoadListTableTemplate()
         {
-            TextAsset ta = EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_list_table\" t:TextAsset");
-            return ta.text;
+            return LoadTemplateFile("template_list_table.txt");
         }
 
         public static string LoadDictTableTemplate()
         {
-            TextAsset ta = EditorUtils.LoadOnlyOneAsset<TextAsset>("\"template_dict_table\" t:TextAsset");
-            return ta.text;
+            return LoadTemplateFile("template_dict_table.txt");
+        }
+        
+        /// <summary>
+        /// テンプレートファイルを読み込む共通メソッド
+        /// </summary>
+        private static string LoadTemplateFile(string fileName)
+        {
+            // まずパッケージパスで試す
+            string packagePath = $"Packages/{PACKAGE_NAME}/{TEMPLATE_BASE_PATH}{fileName}";
+            TextAsset ta = AssetDatabase.LoadAssetAtPath<TextAsset>(packagePath);
+            
+            if (ta != null)
+            {
+                return ta.text;
+            }
+            
+            // フォールバック: 現在のスクリプトの位置から相対パスで探す
+            var scriptPath = GetScriptPath();
+            if (!string.IsNullOrEmpty(scriptPath))
+            {
+                var templateDir = Path.GetDirectoryName(scriptPath);
+                templateDir = Path.Combine(templateDir, "Templates/Templates");
+                var relativePath = Path.Combine(templateDir, fileName).Replace('\\', '/');
+                
+                // Assetsからの相対パスに変換
+                if (relativePath.Contains("/Packages/"))
+                {
+                    int packageIndex = relativePath.IndexOf("/Packages/");
+                    relativePath = relativePath.Substring(packageIndex + 1);
+                }
+                
+                ta = AssetDatabase.LoadAssetAtPath<TextAsset>(relativePath);
+                if (ta != null)
+                {
+                    return ta.text;
+                }
+            }
+            
+            Debug.LogError($"Template not found: {fileName}\nTried paths:\n- {packagePath}\n- {scriptPath}");
+            return string.Empty;
+        }
+        
+        /// <summary>
+        /// このスクリプトファイルのパスを取得（より簡単な方法）
+        /// </summary>
+        private static string GetScriptPath()
+        {
+            // ClassGeneratorスクリプト自体を検索
+            var guids = AssetDatabase.FindAssets("t:Script ClassGenerator");
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (path.EndsWith("ClassGenerator.cs"))
+                {
+                    return path;
+                }
+            }
+            return null;
         }
 
         public static int[] FindKeyIndexes(SheetSync.ConvertSetting setting, Field[] fields)

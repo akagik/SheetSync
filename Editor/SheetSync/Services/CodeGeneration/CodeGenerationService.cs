@@ -1,7 +1,7 @@
 using KoheiUtils;
 using SheetSync;
 
-namespace SheetSync
+namespace SheetSync.Services
 {
     using System;
     using System.IO;
@@ -9,11 +9,13 @@ namespace SheetSync
     using System.Collections.Generic;
     using UnityEngine;
     using UnityEditor;
-    // ResultType = SheetSync.ResultType; // 名前空間の競合を避けるため削除
 
-    public class CsvConvert
+    /// <summary>
+    /// コード生成とアセット作成を担当するサービス
+    /// </summary>
+    public static class CodeGenerationService
     {
-        public static void GenerateCode(SheetSync.ConvertSetting s, SheetSync.GlobalCCSettings gSettings)
+        public static void GenerateCode(ConvertSetting s, GlobalCCSettings gSettings)
         {
             string settingPath = s.GetDirectoryPath();
             string    csvPath   = CCLogic.GetFilePathRelativesToAssets(settingPath, s.GetCsvPath(gSettings));
@@ -34,6 +36,36 @@ namespace SheetSync
             }
 
             CsvData csv = CsvLogic.GetValidCsvData(textAsset.text, gSettings);
+            GenerateCodeFromData(s, gSettings, csv, directoryPath);
+        }
+        
+        /// <summary>
+        /// ICsvData または CsvData からコードを生成する内部メソッド
+        /// </summary>
+            public static void GenerateCodeFromData(ConvertSetting s, GlobalCCSettings gSettings, ICsvData csvData, string directoryPath)
+        {
+            // CsvData への変換（必要な場合）
+            CsvData csv;
+            if (csvData is CsvData csvDataTyped)
+            {
+                csv = csvDataTyped;
+            }
+            else
+            {
+                // ICsvData を CsvData に変換
+                csv = new CsvData();
+                var dataList = new List<List<string>>();
+                for (int i = 0; i < csvData.RowCount; i++)
+                {
+                    var row = new List<string>();
+                    foreach (var cell in csvData.GetRow(i))
+                    {
+                        row.Add(cell);
+                    }
+                    dataList.Add(row);
+                }
+                csv.SetFromList(dataList);
+            }
 
             if (s.isEnum)
             {
@@ -95,17 +127,14 @@ namespace SheetSync
                     Debug.LogFormat("Create \"{0}\"", filePath);
                 }
             }
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
         }
 
-        public static object CreateAssets(SheetSync.ConvertSetting s, SheetSync.GlobalCCSettings gSettings)
+        public static object CreateAssets(ConvertSetting s, GlobalCCSettings gSettings)
         {
             return CreateAssets(s, gSettings, null);
         }
         
-        public static object CreateAssets(SheetSync.ConvertSetting s, SheetSync.GlobalCCSettings gSettings, ICsvDataProvider dataProvider)
+        public static object CreateAssets(ConvertSetting s, GlobalCCSettings gSettings, ICsvDataProvider dataProvider)
         {
             // データプロバイダーが提供されていない場合は従来のファイルベース処理
             if (dataProvider == null)
@@ -174,7 +203,7 @@ namespace SheetSync
             return CreateAssetsInternal(s, gSettings, providerFields, providerContents);
         }
         
-        private static object CreateAssetsInternal(SheetSync.ConvertSetting s, SheetSync.GlobalCCSettings gSettings, Field[] fields, object csvContents)
+        private static object CreateAssetsInternal(ConvertSetting s, GlobalCCSettings gSettings, Field[] fields, object csvContents)
         {
             string settingPath = s.GetDirectoryPath();
 

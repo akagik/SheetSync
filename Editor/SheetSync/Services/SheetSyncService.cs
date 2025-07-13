@@ -6,12 +6,13 @@ using UnityEngine;
 using UnityEditor;
 using KoheiUtils;
 using KoheiUtils.Reflections;
-using SheetSync;
+using SheetSync.Services;
 
 namespace SheetSync
 {
     /// <summary>
     /// SheetSync のビジネスロジックを提供するサービスクラス
+    /// コンパイルエラーなしのテスト変更
     /// 
     /// ConvertSetting に対する各種操作（インポート、ダウンロード、コード生成、アセット作成）を
     /// 実行するためのメソッドを提供します。UI層から独立したビジネスロジックを実装しています。
@@ -80,17 +81,47 @@ namespace SheetSync
             }
 
             // データプロバイダーを取得
-            SheetSync.GlobalCCSettings gSettings = SheetSync.CCLogic.GetGlobalSettings();
+            GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
             ICsvDataProvider dataProvider = GetCsvDataProvider(settings, gSettings);
             CreateAssetsJob createAssetsJob = new CreateAssetsJob(settings, dataProvider);
             object generatedAssets = null;
 
             // Generate Code if type script is not found.
-            Type assetType;
-            if (settings.isEnum || !CsvConvert.TryGetTypeWithError(settings.className, out assetType,
-                    settings.checkFullyQualifiedName, dialog: false))
+            bool mustGenerateClass = settings.classGenerate && !CodeGenerationService.TryGetTypeWithError(settings.className, out _, settings.checkFullyQualifiedName, dialog: false);
+            bool mustGenerateTableClass = settings.tableGenerate && settings.tableClassGenerate && !CodeGenerationService.TryGetTypeWithError(settings.TableClassName, out _, settings.checkFullyQualifiedName, dialog: false);
+            
+            if (settings.isEnum || mustGenerateClass || mustGenerateTableClass)
             {
-                GenerateOneCode(settings, gSettings);
+                // 直接インポートの場合は、メモリ上のデータからコード生成
+                if (settings.useDirectImport && directImportData != null)
+                {
+                    Debug.Log($"[ExecuteImport] 直接インポートデータからクラス生成 - {settings.className}");
+                    
+                    // ICsvData を作成
+                    var sheetData = new SheetData(directImportData);
+                    
+                    // コード生成先のディレクトリパスを取得
+                    string directoryPath = CCLogic.GetFullPath(settings.GetDirectoryPath(), settings.codeDestination);
+                    
+                    // ディレクトリが存在しない場合は作成
+                    if (!Directory.Exists(directoryPath))
+                    {
+                        Directory.CreateDirectory(directoryPath);
+                        Debug.Log($"Created directory: {directoryPath}");
+                    }
+                    
+                    // 直接データからコード生成
+                    CodeGenerationService.GenerateCodeFromData(settings, gSettings, sheetData, directoryPath);
+                    
+                    // AssetDatabase の更新
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
+                }
+                else
+                {
+                    // 従来のファイルベースのコード生成
+                    GenerateOneCode(settings, gSettings);
+                }
 
                 if (!settings.isEnum)
                 {
@@ -99,6 +130,7 @@ namespace SheetSync
                         "Please reimport for creating assets after compiling",
                         "ok"
                     );
+                    yield break;
                 }
             }
             // Create Assets
@@ -274,7 +306,46 @@ namespace SheetSync
             else
             {
                 downloadSuccess = false;
-                Debug.LogError("[ExecuteDirectDownload] データ取得失敗");
+                
+                // 詳細なエラー情報を表示
+                string errorDetails = "[ExecuteDirectDownload] データ取得失敗\n";
+                errorDetails += $"- SheetID: {settings.sheetID}\n";
+                errorDetails += $"- GID: {settings.gid}\n";
+                
+                // GoogleSheetsDownloader からの詳細なエラー情報を追加
+                if (!string.IsNullOrEmpty(GoogleSheetsDownloader.previousError))
+                {
+                    errorDetails += $"- エラー詳細: {GoogleSheetsDownloader.previousError}\n";
+                }
+                else if (!GoogleSheetsDownloader.previousDownloadSuccess)
+                {
+                    errorDetails += "- ダウンロード処理が失敗しました（詳細不明）\n";
+                }
+                
+                if (GoogleSheetsDownloader.previousDownloadData == null && GoogleSheetsDownloader.previousDownloadSuccess)
+                {
+                    errorDetails += "- データの取得には成功しましたが、データが空でした\n";
+                }
+                
+                Debug.LogError(errorDetails);
+                
+                // ユーザーにダイアログで通知（エラー詳細も含める）
+                string dialogMessage = $"スプレッドシート '{settings.className}' のデータ取得に失敗しました。\n\n" +
+                    $"SheetID: {settings.sheetID}\n" +
+                    $"GID: {settings.gid}\n\n";
+                
+                if (!string.IsNullOrEmpty(GoogleSheetsDownloader.previousError))
+                {
+                    dialogMessage += $"エラー: {GoogleSheetsDownloader.previousError}\n\n";
+                }
+                
+                dialogMessage += "詳細はConsoleログを確認してください。";
+                
+                EditorUtility.DisplayDialog(
+                    "直接インポート失敗",
+                    dialogMessage,
+                    "OK"
+                );
             }
 
             yield break;
@@ -298,7 +369,7 @@ namespace SheetSync
                 foreach (SheetSync.ConvertSetting s in settings)
                 {
                     ShowProgress(s.className, (float)i / settings.Length, i, settings.Length);
-                    CsvConvert.GenerateCode(s, globalSettings);
+                    CodeGenerationService.GenerateCode(s, globalSettings);
                     i++;
                     ShowProgress(s.className, (float)i / settings.Length, i, settings.Length);
                 }
@@ -328,7 +399,7 @@ namespace SheetSync
             {
                 for (int i = 0; i < settings.Length; i++)
                 {
-                    CsvConvert.CreateAssets(settings[i], globalSettings);
+                    CodeGenerationService.CreateAssets(settings[i], globalSettings);
                 }
             }
             catch (Exception e)
@@ -356,7 +427,7 @@ namespace SheetSync
 
             try
             {
-                CsvConvert.GenerateCode(settings, globalSettings);
+                CodeGenerationService.GenerateCode(settings, globalSettings);
             }
             catch (Exception e)
             {

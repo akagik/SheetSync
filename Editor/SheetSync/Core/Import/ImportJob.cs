@@ -1,5 +1,6 @@
 using System;
 using SheetSync;
+using SheetSync.Services;
 using UnityEditor;
 using UnityEngine;
 
@@ -36,7 +37,7 @@ namespace SheetSync
                     dataProvider = SheetSyncService.GetCsvDataProvider(settings, gSettings);
                 }
                 
-                generated = CsvConvert.CreateAssets(settings, gSettings, dataProvider);
+                generated = CodeGenerationService.CreateAssets(settings, gSettings, dataProvider);
             }
             catch (Exception e)
             {
