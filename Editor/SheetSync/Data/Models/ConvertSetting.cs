@@ -219,6 +219,29 @@ namespace SheetSync
         [Required]
 #endif
         public string gid;
+        
+#if ODIN_INSPECTOR && UNITY_EDITOR
+        /// <summary>
+        /// Google SpreadsheetsのURLから設定を適用するヘルパーメソッド
+        /// </summary>
+        [Button("URLから設定を適用", ButtonSizes.Medium)]
+        [ShowIf("useGSPlugin")]
+        [PropertySpace(SpaceBefore = 10, SpaceAfter = 10)]
+        private void ApplyGoogleSheetsUrl()
+        {
+            // URLダイアログを表示
+            var urlDialog = GoogleSheetsUrlDialog.ShowDialog();
+            if (urlDialog != null && urlDialog.IsConfirmed)
+            {
+                UnityEditor.Undo.RecordObject(this, "Apply Google Sheets URL");
+                this.sheetID = urlDialog.SheetId;
+                this.gid = urlDialog.Gid;
+                UnityEditor.EditorUtility.SetDirty(this);
+                
+                Debug.Log($"Google Sheets設定を適用しました - SheetID: {urlDialog.SheetId}, GID: {urlDialog.Gid}");
+            }
+        }
+#endif
 
 #if ODIN_INSPECTOR
         [Sirenix.OdinInspector.ShowIf("useGSPlugin")]
