@@ -1,5 +1,13 @@
 # SheetSync 更新機能 設計補足資料
 
+## 0. 本資料の目的
+
+この補足資料は、メイン設計書（DESIGN_SheetSync_Update_Feature.md）の詳細実装と、実際の開発時に必要となる技術的詳細を提供します。
+
+### 対象となる機能
+- Google Spreadsheetsの特定行を検索・更新する機能
+- 例：HumanMasterテーブルでhumanId=1のnameを"Taro"から"Tanaka"に変更
+
 ## 1. コンフリクト解決の詳細設計
 
 ### 1.1 楽観的ロックの実装
@@ -455,3 +463,80 @@ public class DetailedAuditLogger
 4. **他システムとの連携**
    - Slack通知
    - Git連携（変更の自動コミット）
+
+## 9. 実装開始のためのクイックスタート
+
+### 9.1 最小実装（MVP）の手順
+
+**Step 1: 基本的なクエリビルダー**
+```csharp
+// 最初は簡単な実装から
+public class SimpleUpdateQuery<T>
+{
+    public string FieldName { get; set; }
+    public object SearchValue { get; set; }
+    public string UpdateFieldName { get; set; }
+    public object UpdateValue { get; set; }
+}
+
+// 使用例
+var query = new SimpleUpdateQuery<HumanMaster>
+{
+    FieldName = "humanId",
+    SearchValue = 1,
+    UpdateFieldName = "name", 
+    UpdateValue = "Tanaka"
+};
+```
+
+**Step 2: Google Sheets API統合**
+```csharp
+public async Task<bool> UpdateSingleRow(SimpleUpdateQuery<T> query)
+{
+    // 1. 該当行を検索
+    var rowIndex = await FindRowIndex(query.FieldName, query.SearchValue);
+    
+    // 2. 更新対象のセル位置を計算
+    var cellAddress = CalculateCellAddress(rowIndex, query.UpdateFieldName);
+    
+    // 3. 値を更新
+    return await UpdateCell(cellAddress, query.UpdateValue);
+}
+```
+
+**Step 3: 差分確認UI**
+```csharp
+if (EditorUtility.DisplayDialog(
+    "更新の確認",
+    $"以下の変更を適用しますか？\n\n" +
+    $"Row {rowIndex} (humanId={searchValue}):\n" +
+    $"  name: \"{oldValue}\" → \"{newValue}\"",
+    "更新", "キャンセル"))
+{
+    // 更新実行
+}
+```
+
+### 9.2 段階的な機能追加
+
+1. **Phase 1（1週間）**: 基本的な単一フィールド更新
+2. **Phase 2（1週間）**: Expression Tree対応
+3. **Phase 3（2週間）**: バッチ処理とUI改善
+4. **Phase 4（1週間）**: エラーハンドリングとテスト
+
+### 9.3 必要なファイル構成
+
+```
+Packages/SheetSync/Editor/SheetSync/
+├── Services/
+│   └── Update/
+│       ├── SheetUpdateService.cs        # メインサービス
+│       ├── QueryBuilder.cs              # クエリビルダー
+│       └── UpdateResult.cs              # 結果クラス
+├── UI/
+│   └── Windows/
+│       └── SheetUpdateWindow.cs         # 更新UI
+└── Tests/
+    └── Update/
+        └── SheetUpdateServiceTests.cs   # テスト
+```

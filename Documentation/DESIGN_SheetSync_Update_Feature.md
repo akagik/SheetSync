@@ -1,8 +1,63 @@
 # SheetSync 更新機能 設計書 v2.0
 
-## 1. 設計レビューと問題点の分析
+## 0. 概要と目的
 
-### 1.1 初期設計の問題点
+### 0.1 本設計書の目的
+本設計書は、Google Spreadsheetsの特定の行を検索し、その行のデータのみを更新する機能（以下、「選択的更新機能」）の設計を定めるものです。
+
+### 0.2 解決したい課題
+現在のSheetSyncは、スプレッドシート全体のインポート機能のみを提供しています。しかし、実際の運用では：
+- 特定のレコードのみを更新したい（例：humanId=1のユーザー名を変更）
+- 大規模データの一部のみを効率的に更新したい
+- 更新前に変更内容を確認したい
+
+といったニーズがあります。
+
+### 0.3 具体的なユースケース
+
+**例：HumanMasterテーブルの更新**
+```csharp
+// 既存のマスターデータ
+[System.Serializable]
+public class HumanMaster
+{
+    public int humanId;
+    public string name;
+    public int age;
+    public List<CompanyMaster> companies;
+}
+```
+
+**スプレッドシートの状態：**
+| バージョン | humanId | name   | age  | 備考               |
+| ---------- | ------- | ------ | ---- | ------------------ |
+|            | int     | string | int  |                    |
+|            | 0       | Kohei  | 34   |                    |
+|            | 1       | Taro   | 23   |                    |
+|            | 2       | Mami   | 45   | これはテストデータ |
+
+**実行したい操作：**
+- humanId=1 の行を検索
+- name を "Taro" から "Tanaka" に変更
+- 他のフィールドや行は一切変更しない
+
+## 1. 機能要件
+
+### 1.1 必須要件
+1. **選択的検索**: 任意のフィールドで行を検索（humanId、age、nameなど）
+2. **選択的更新**: 検索された行の特定フィールドのみ更新
+3. **型安全性**: 型を持たないフィールド（備考、バージョン）は保護
+4. **差分確認**: 更新前に変更内容をプレビュー表示
+5. **バッチ処理**: 複数行の一括更新に対応
+
+### 1.2 将来の拡張要件
+- 行の削除機能
+- 行の挿入機能
+- 複雑な検索条件（AND/OR）
+
+## 2. 設計方針と課題分析
+
+### 2.1 初期設計の問題点
 
 #### a) 型安全性の欠如
 - フィールド名を文字列で指定 → コンパイル時エラー検出不可
@@ -24,9 +79,9 @@
 - 検索ロジックが固定的
 - テストが困難
 
-## 2. 改訂版アーキテクチャ設計
+## 3. 改訂版アーキテクチャ設計
 
-### 2.1 コア設計思想
+### 3.1 コア設計思想
 
 ```
 1. 型安全性ファースト - Expression Treeベースのクエリシステム
@@ -35,7 +90,7 @@
 4. ジェネリック設計 - 再利用可能なコンポーネント
 ```
 
-### 2.2 レイヤードアーキテクチャ
+### 3.2 レイヤードアーキテクチャ
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -61,9 +116,9 @@
 └─────────────────────────────────────────────────┘
 ```
 
-## 3. 詳細設計
+## 4. 詳細設計
 
-### 3.1 型安全なクエリシステム
+### 4.1 型安全なクエリシステム
 
 ```csharp
 // 使用例
@@ -110,7 +165,7 @@ public class QueryBuilder<T> where T : class
 }
 ```
 
-### 3.2 差分追跡システム
+### 4.2 差分追跡システム
 
 ```csharp
 public class ChangeTracker<T> where T : class
@@ -152,7 +207,7 @@ public class ChangeTracker<T> where T : class
 }
 ```
 
-### 3.3 バッチ更新の最適化
+### 4.3 バッチ更新の最適化
 
 ```csharp
 public class BatchUpdateOptimizer
@@ -191,7 +246,7 @@ public class BatchUpdateOptimizer
 }
 ```
 
-### 3.4 イベントシステムとフック
+### 4.4 イベントシステムとフック
 
 ```csharp
 public interface IUpdateHook<T> where T : class
@@ -226,7 +281,7 @@ public class AuditLogHook<T> : IUpdateHook<T> where T : class
 }
 ```
 
-### 3.5 エラーハンドリングとリトライ
+### 4.5 エラーハンドリングとリトライ
 
 ```csharp
 public class ResilientSheetRepository : ISheetRepository
@@ -256,9 +311,9 @@ public class ResilientSheetRepository : ISheetRepository
 }
 ```
 
-## 4. UI/UX設計
+## 5. UI/UX設計
 
-### 4.1 プログレッシブUI
+### 5.1 プログレッシブUI
 
 ```csharp
 public class UpdateProgressUI : IProgress<UpdateProgress>
@@ -281,7 +336,7 @@ public class UpdateProgressUI : IProgress<UpdateProgress>
 }
 ```
 
-### 4.2 差分ビューアー
+### 5.2 差分ビューアー
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -301,9 +356,9 @@ public class UpdateProgressUI : IProgress<UpdateProgress>
 └─────────────────────────────────────────────┘
 ```
 
-## 5. セキュリティと権限管理
+## 6. セキュリティと権限管理
 
-### 5.1 権限チェック
+### 6.1 権限チェック
 
 ```csharp
 [RequirePermission(Permission.UpdateSheet)]
@@ -331,9 +386,9 @@ public class SecureUpdateService : IUpdateService
 }
 ```
 
-## 6. テスト戦略
+## 7. テスト戦略
 
-### 6.1 単体テスト
+### 7.1 単体テスト
 
 ```csharp
 [TestFixture]
@@ -365,7 +420,7 @@ public class QueryBuilderTests
 }
 ```
 
-### 6.2 統合テスト
+### 7.2 統合テスト
 
 ```csharp
 [TestFixture]
@@ -396,9 +451,9 @@ public class SheetUpdateIntegrationTests
 }
 ```
 
-## 7. パフォーマンス最適化
+## 8. パフォーマンス最適化
 
-### 7.1 キャッシング戦略
+### 8.1 キャッシング戦略
 
 ```csharp
 public class CachedSheetRepository : ISheetRepository
@@ -424,7 +479,7 @@ public class CachedSheetRepository : ISheetRepository
 }
 ```
 
-### 7.2 非同期ストリーミング
+### 8.2 非同期ストリーミング
 
 ```csharp
 public async IAsyncEnumerable<T> StreamLargeDataAsync<T>(
@@ -451,7 +506,7 @@ public async IAsyncEnumerable<T> StreamLargeDataAsync<T>(
 }
 ```
 
-## 8. 実装ロードマップ
+## 9. 実装ロードマップ
 
 ### Phase 1: 基盤構築（2週間）
 - [ ] 型安全クエリビルダーの実装
@@ -473,7 +528,7 @@ public async IAsyncEnumerable<T> StreamLargeDataAsync<T>(
 - [ ] 非同期ストリーミング
 - [ ] 負荷テスト
 
-## 9. リスクと対策
+## 10. リスクと対策
 
 | リスク | 影響度 | 発生確率 | 対策 |
 |--------|--------|----------|------|
@@ -482,14 +537,93 @@ public async IAsyncEnumerable<T> StreamLargeDataAsync<T>(
 | 同時編集による競合 | 中 | 高 | 楽観的ロック、差分マージ |
 | 型定義の変更 | 中 | 中 | スキーマバージョニング |
 
-## 10. まとめ
+## 11. 具体的な使用例
 
-この改訂版設計では、初期設計の問題点を解決し、以下を実現します：
+### 11.1 基本的な使用例
 
+```csharp
+// 1. humanId=1のユーザー名を更新
+var updateService = new SheetUpdateService();
+
+var result = await updateService
+    .For<HumanMaster>()
+    .Where(h => h.humanId == 1)
+    .Update(h => h.name, "Tanaka")
+    .ExecuteAsync();
+
+// 結果: humanId=1の行のnameフィールドのみが "Taro" → "Tanaka" に更新される
+```
+
+### 11.2 バッチ更新の例
+
+```csharp
+// 30歳以上の全ユーザーの年齢を+1
+var batchResult = await updateService
+    .For<HumanMaster>()
+    .Where(h => h.age >= 30)
+    .Update(h => h.age, h => h.age + 1)
+    .WithConfirmation(true)  // 確認ダイアログを表示
+    .ExecuteAsync();
+
+// 結果: age >= 30 の全行のageフィールドが +1 される
+```
+
+### 11.3 複数フィールドの更新
+
+```csharp
+// 特定ユーザーの複数フィールドを更新
+var multiFieldResult = await updateService
+    .For<HumanMaster>()
+    .Where(h => h.humanId == 2)
+    .Update(h => h.name, "MAMI")
+    .Update(h => h.age, 46)
+    .ExecuteAsync();
+```
+
+### 11.4 単体テストの例
+
+```csharp
+[Test]
+public async Task UpdateHumanName_Success()
+{
+    // Arrange
+    var mockRepo = new MockSheetRepository();
+    mockRepo.AddTestData(new HumanMaster { humanId = 1, name = "Taro", age = 23 });
+    
+    var service = new SheetUpdateService(mockRepo);
+    
+    // Act
+    var result = await service
+        .For<HumanMaster>()
+        .Where(h => h.humanId == 1)
+        .Update(h => h.name, "Tanaka")
+        .ExecuteAsync();
+    
+    // Assert
+    Assert.IsTrue(result.Success);
+    Assert.AreEqual(1, result.UpdatedRowCount);
+    Assert.AreEqual("Tanaka", mockRepo.GetData<HumanMaster>(1).name);
+    Assert.AreEqual(23, mockRepo.GetData<HumanMaster>(1).age); // 他のフィールドは変更されない
+}
+```
+
+## 12. まとめ
+
+この設計は、AI_INSTRUCTIONS.mdで要求された以下の要件を完全に満たします：
+
+### 実現される機能
+1. ✅ **特定行の検索と更新**: humanId=1 の行のみを更新
+2. ✅ **型を持たないフィールドの保護**: バージョンや備考は変更されない
+3. ✅ **バッチ処理対応**: 複数行の一括更新
+4. ✅ **任意フィールドでの検索**: humanId以外（age等）でも検索可能
+5. ✅ **差分確認機能**: 更新前にプレビュー表示
+6. ✅ **拡張性**: 将来の削除・挿入機能に対応可能な設計
+
+### 技術的な特徴
 1. **型安全性**: Expression Treeによるコンパイル時チェック
 2. **スケーラビリティ**: 差分同期とストリーミング処理
 3. **保守性**: ジェネリック設計とイベントドリブンアーキテクチャ
 4. **信頼性**: トランザクション、リトライ、監査ログ
 5. **パフォーマンス**: キャッシング、バッチ最適化、非同期処理
 
-この設計により、エンタープライズレベルの要求にも対応できる堅牢なシステムを構築できます。
+この設計により、実用的かつ拡張可能な選択的更新機能を実現できます。
