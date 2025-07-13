@@ -30,10 +30,49 @@ namespace SheetSync.Services.Update
             
             if (string.IsNullOrEmpty(_apiKey))
             {
-                throw new InvalidOperationException("APIキーが設定されていません。");
+                // APIキーの入力を促す
+                RequestApiKey();
+                
+                // 再度取得
+                _apiKey = EditorPrefs.GetString("SheetSync_ApiKey", "");
+                
+                if (string.IsNullOrEmpty(_apiKey))
+                {
+                    throw new InvalidOperationException("APIキーが設定されていません。");
+                }
             }
             
             InitializeService();
+        }
+        
+        private void RequestApiKey()
+        {
+            int dialogResult = EditorUtility.DisplayDialogComplex(
+                "Google Sheets API キーが必要です",
+                "Google Sheets API を使用するには API キーが必要です。\n" +
+                "API キーを入力してください。",
+                "入力する",
+                "キャンセル",
+                "ヘルプ"
+            );
+            
+            if (dialogResult == 1) // キャンセル
+            {
+                return;
+            }
+            else if (dialogResult == 2) // ヘルプ
+            {
+                Application.OpenURL("https://console.cloud.google.com/apis/credentials");
+                return;
+            }
+            
+            // API キーを入力ダイアログで取得
+            string apiKey = EditorInputDialog.Show("API キー入力", "Google API キーを入力してください:", "");
+            if (!string.IsNullOrEmpty(apiKey))
+            {
+                EditorPrefs.SetString("SheetSync_ApiKey", apiKey);
+                Debug.Log("APIキーを保存しました。");
+            }
         }
         
         private void InitializeService()
@@ -133,7 +172,8 @@ namespace SheetSync.Services.Update
                 }
                 
                 // 5. 値を更新
-                var updateRange = $"{GetSheetName()}!{GetColumnLetter(updateColumnIndex)}{targetRowIndex.Value + 1}";
+                var sheetName = await GetSheetNameAsync();
+                var updateRange = $"{sheetName}!{GetColumnLetter(updateColumnIndex)}{targetRowIndex.Value + 1}";
                 var valueRange = new ValueRange
                 {
                     Values = new List<IList<object>> { new List<object> { query.UpdateValue } }
@@ -184,7 +224,8 @@ namespace SheetSync.Services.Update
         /// </summary>
         protected virtual async Task<ValueRange> GetSheetDataAsync()
         {
-            var range = $"{GetSheetName()}!A:ZZ";
+            var sheetName = await GetSheetNameAsync();
+            var range = $"{sheetName}!A:ZZ";
             var request = _sheetsService.Spreadsheets.Values.Get(_setting.sheetID, range);
             return await request.ExecuteAsync();
         }
@@ -192,11 +233,39 @@ namespace SheetSync.Services.Update
         /// <summary>
         /// シート名を取得（gidから）
         /// </summary>
-        private string GetSheetName()
+        private async Task<string> GetSheetNameAsync()
         {
-            // TODO: 実際のシート名を取得する実装
-            // 現在は仮実装
-            return "Sheet1";
+            try
+            {
+                var spreadsheet = await _sheetsService.Spreadsheets.Get(_setting.sheetID).ExecuteAsync();
+                
+                // gidを数値に変換
+                if (int.TryParse(_setting.gid, out int gidInt))
+                {
+                    foreach (var sheet in spreadsheet.Sheets)
+                    {
+                        if (sheet.Properties.SheetId == gidInt)
+                        {
+                            return sheet.Properties.Title;
+                        }
+                    }
+                }
+                
+                // gidが見つからない場合は最初のシートを使用
+                if (spreadsheet.Sheets.Count > 0)
+                {
+                    Debug.LogWarning($"指定されたgid '{_setting.gid}' が見つかりません。最初のシートを使用します。");
+                    return spreadsheet.Sheets[0].Properties.Title;
+                }
+                
+                throw new InvalidOperationException("スプレッドシートにシートが存在しません。");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"シート名の取得に失敗しました: {ex.Message}");
+                // フォールバック
+                return "Sheet1";
+            }
         }
         
         /// <summary>
@@ -249,6 +318,33 @@ namespace SheetSync.Services.Update
             {
                 // 変換に失敗した場合は文字列として比較
                 return cellValue.ToString() == searchValue.ToString();
+            }
+        }
+        
+        /// <summary>
+        /// 保存されているAPIキーをクリアする
+        /// </summary>
+        [MenuItem("Tools/SheetSync/Clear API Key")]
+        public static void ClearApiKey()
+        {
+            EditorPrefs.DeleteKey("SheetSync_ApiKey");
+            Debug.Log("APIキーをクリアしました。");
+        }
+        
+        /// <summary>
+        /// APIキーが設定されているか確認する
+        /// </summary>
+        [MenuItem("Tools/SheetSync/Check API Key")]
+        public static void CheckApiKey()
+        {
+            string apiKey = EditorPrefs.GetString("SheetSync_ApiKey", "");
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                Debug.Log("APIキーが設定されていません。");
+            }
+            else
+            {
+                Debug.Log($"APIキーが設定されています（最初の8文字: {apiKey.Substring(0, Math.Min(8, apiKey.Length))}...）");
             }
         }
     }
