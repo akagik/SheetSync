@@ -75,7 +75,7 @@ namespace Kohei.SheetSync.Tests.Editor.Insert
             var result = await _service.InsertRowAsync(
                 TEST_SPREADSHEET_ID,
                 TEST_SHEET_NAME,
-                2, // ヘッダー後の位置
+                2, // 4行目に挿入（0=2行目、1=3行目、2=4行目）
                 rowData
             );
             
@@ -145,7 +145,7 @@ namespace Kohei.SheetSync.Tests.Editor.Insert
             var result = await _service.InsertRowAsync(
                 TEST_SPREADSHEET_ID,
                 TEST_SHEET_NAME,
-                2, // 3番目の位置（0ベース、ヘッダー後）
+                2, // 4行目に挿入（0=2行目、1=3行目、2=4行目）
                 rowData
             );
             

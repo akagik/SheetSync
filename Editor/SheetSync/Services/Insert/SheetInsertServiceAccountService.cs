@@ -249,12 +249,14 @@ namespace SheetSync.Services.Insert
             
             foreach (var (rowIndex, rowData) in sortedInsertions)
             {
-                // 挿入位置の検証（ヘッダー行の後、データ範囲内）
-                var actualInsertIndex = rowIndex + 1; // ヘッダー行を考慮
+                // 挿入位置の検証
+                // rowIndex は0ベースで、0 = ヘッダー行の直後（データの最初）
+                // スプレッドシートは0ベースで、0 = ヘッダー行、1 = 最初のデータ行
+                var actualInsertIndex = rowIndex + 1; // ヘッダー行をスキップ
                 
                 if (actualInsertIndex > metadata.Values.Count)
                 {
-                    if (verbose) Debug.LogWarning($"行 {rowIndex} は範囲外です（最大: {metadata.Values.Count - 1}）。スキップします。");
+                    if (verbose) Debug.LogWarning($"行番号 {rowIndex} は範囲外です（最大: {metadata.Values.Count - 1}）。スキップします。");
                     result.FailCount++;
                     result.FailedIndices.Add(rowIndex);
                     continue;

@@ -13,7 +13,7 @@ namespace SheetSync.Services.Insert
         /// </summary>
         /// <param name="spreadsheetId">スプレッドシートID</param>
         /// <param name="sheetName">シート名</param>
-        /// <param name="rowIndex">挿入位置（0ベース、ヘッダー行を考慮）</param>
+        /// <param name="rowIndex">挿入位置（0ベース、0=ヘッダー直後の2行目、1=3行目、2=4行目）</param>
         /// <param name="rowData">挿入データ（列名と値のペア）</param>
         /// <param name="verbose">詳細ログを出力するか</param>
         /// <returns>挿入が成功したかどうか</returns>
