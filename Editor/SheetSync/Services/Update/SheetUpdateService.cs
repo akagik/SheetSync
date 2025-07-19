@@ -138,7 +138,7 @@ namespace SheetSync.Services.Update
             string keyValue, 
             Dictionary<string, object> updateData)
         {
-            Debug.LogError("APIキーを使用した更新はサポートされていません。OAuth2認証またはサービスアカウント認証を使用してください。");
+            Debug.LogError("APIキーを使用した更新はサポートされていません。サービスアカウント認証を使用してください。");
             return false;
         }
         
@@ -152,7 +152,7 @@ namespace SheetSync.Services.Update
             string keyColumn,
             Dictionary<string, Dictionary<string, object>> updates)
         {
-            Debug.LogError("APIキーを使用した更新はサポートされていません。OAuth2認証またはサービスアカウント認証を使用してください。");
+            Debug.LogError("APIキーを使用した更新はサポートされていません。サービスアカウント認証を使用してください。");
             return false;
         }
         

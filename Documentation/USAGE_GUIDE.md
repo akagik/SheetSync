@@ -19,9 +19,8 @@ SheetSyncは、Google SpreadsheetsとUnityのScriptableObjectを同期するツ�
 3. 「APIとサービス」→「ライブラリ」から「Google Sheets API」を有効化
 
 ### 2. 認証方式の選択
-以下の3つから選択：
+以下の2つから選択：
 - **APIキー**: 読み取り専用（最も簡単）
-- **OAuth2**: 読み書き可能（ユーザー認証が必要）
 - **サービスアカウント**: 読み書き可能（自動化に最適）
 
 ## スプレッドシートからの読み込み（Import）
@@ -77,29 +76,7 @@ Table Generate: false（テーブルクラスは不要な場合）
 読み取り専用のアクセスに使用してください。
 ```
 
-### 方法2: OAuth2認証
-
-#### セットアップ
-1. Google Cloud Consoleで「OAuth 2.0 クライアント ID」を作成
-   - アプリケーションの種類: デスクトップアプリ
-2. credentials.jsonをダウンロード
-3. `ProjectSettings/SheetSync/credentials.json`に配置
-
-#### 使用方法
-```
-1. Tools > SheetSync > Update Records (OAuth2) を開く
-2. 「認証を開始」をクリック
-3. ブラウザでGoogleアカウントにログイン
-4. 権限を許可
-5. 更新したいデータを入力：
-   - キー列名: humanId
-   - 検索値: 1
-   - 更新する列名: name
-   - 新しい値: Tanaka
-6. 「更新を実行」をクリック
-```
-
-### 方法3: サービスアカウント認証
+### 方法2: サービスアカウント認証
 
 #### セットアップ
 1. Google Cloud Consoleでサービスアカウントを作成
@@ -124,7 +101,6 @@ Table Generate: false（テーブルクラスは不要な場合）
 | 認証方式 | 読み取り | 書き込み | ユーザー操作 | 自動化 | 用途 |
 |---------|---------|---------|--------------|--------|------|
 | APIキー | ✅ | ❌ | 不要 | ✅ | 読み取り専用、開発環境 |
-| OAuth2 | ✅ | ✅ | 必要 | ❌ | 個人開発、手動更新 |
 | サービスアカウント | ✅ | ✅ | 不要 | ✅ | CI/CD、自動化、本番環境 |
 
 ## 実践例
@@ -190,24 +166,18 @@ await updateService.UpdateMultipleRowsAsync(
 - スプレッドシートの共有設定を確認
 - サービスアカウントのメールアドレス（client_email）を「編集者」として追加
 
-### 「credentials.jsonが見つかりません」
+### 「service-account-key.jsonが見つかりません」
 - 正しいパスに配置: `ProjectSettings/SheetSync/`
-- OAuth2クライアントの種類が「デスクトップアプリ」であることを確認
-
-### 「Invalid grant」エラー（OAuth2）
-- トークンの有効期限切れ
-- `Tools > SheetSync > Clear OAuth2 Token`でトークンをクリア
-- 再度認証を実行
+- サービスアカウントキーがJSON形式であることを確認
 
 ## ベストプラクティス
 
-1. **開発環境**: OAuth2認証（個人のGoogleアカウントで作業）
+1. **開発環境**: APIキー（読み取り専用）またはサービスアカウント
 2. **本番環境**: サービスアカウント認証（自動化、CI/CD対応）
 3. **セキュリティ**: 認証ファイルは必ず.gitignoreに追加
 4. **バックアップ**: 重要なデータは定期的にバックアップ
 5. **権限管理**: 最小限の権限のみ付与（読み取り専用が可能なら書き込み権限は付与しない）
 
 ## 関連ドキュメント
-- [OAuth2_Setup_Guide.md](OAuth2_Setup_Guide.md) - OAuth2認証の詳細設定
 - [ServiceAccount_Setup_Guide.md](ServiceAccount_Setup_Guide.md) - サービスアカウントの詳細設定
 - [SPEC_Update_Feature.md](SPEC_Update_Feature.md) - 更新機能の技術仕様

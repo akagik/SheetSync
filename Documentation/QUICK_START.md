@@ -20,16 +20,7 @@
    - 「認証情報を作成」→「APIキー」
 ```
 
-#### 🔵 読み書き両方（OAuth2）
-```
-1. Google Cloud ConsoleでOAuth2クライアントを作成
-   - アプリケーションの種類: デスクトップアプリ
-2. credentials.jsonをダウンロード
-3. ProjectSettings/SheetSync/credentials.json に配置
-4. Tools > SheetSync > Update Records (OAuth2)
-```
-
-#### 🟣 自動化向け（サービスアカウント）
+#### 🟣 読み書き両方（サービスアカウント）
 ```
 1. Google Cloud Consoleでサービスアカウントを作成
 2. JSONキーをダウンロード
@@ -61,10 +52,10 @@
 
 ### ステップ4: データの更新（書き込み）
 
-#### OAuth2を使用した更新
+#### サービスアカウントを使用した更新
 ```csharp
 // 1. ウィンドウを開く
-Tools > SheetSync > Update Records (OAuth2)
+Tools > SheetSync > Update Records (Service Account)
 
 // 2. 認証
 「認証を開始」ボタンをクリック
@@ -97,9 +88,8 @@ A:
 - サービスアカウント: スプレッドシートがサービスアカウントのメールと共有されているか確認
 
 ### Q: 書き込みができません
-A: APIキーは読み取り専用です。書き込みにはOAuth2またはサービスアカウント認証を使用してください。
+A: APIキーは読み取り専用です。書き込みにはサービスアカウント認証を使用してください。
 
 ## 次のステップ
 - [詳細な使い方ガイド](USAGE_GUIDE.md)
-- [OAuth2セットアップ](OAuth2_Setup_Guide.md)
 - [サービスアカウントセットアップ](ServiceAccount_Setup_Guide.md)
