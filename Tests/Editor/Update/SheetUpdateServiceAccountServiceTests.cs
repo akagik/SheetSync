@@ -211,7 +211,7 @@ namespace Kohei.SheetSync.Tests.Editor.Update
             
             // Assert
             Assert.IsFalse(result);
-            LogAssert.Expect(LogType.Error, "humanId='999' の行が見つかりません。");
+            LogAssert.Expect(LogType.Warning, "humanId='999' の行が見つかりません。スキップします。");
         }
         
         [Test]
