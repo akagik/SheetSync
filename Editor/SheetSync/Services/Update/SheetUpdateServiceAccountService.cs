@@ -15,6 +15,23 @@ namespace SheetSync.Services.Update
     /// </summary>
     public class SheetUpdateServiceAccountService : ISheetUpdateService
     {
+        #region 内部データ構造
+        
+        /// <summary>
+        /// スプレッドシートのメタデータ
+        /// </summary>
+        private class SheetMetadata
+        {
+            public SheetsService Service { get; set; }
+            public int? SheetId { get; set; }
+            public IList<IList<object>> Values { get; set; }
+            public IList<object> Headers { get; set; }
+            public Dictionary<string, int> ColumnIndexMap { get; set; }
+            public int KeyColumnIndex { get; set; }
+        }
+        
+        #endregion
+        
         /// <summary>
         /// スプレッドシートの特定の行を更新
         /// </summary>
@@ -26,155 +43,13 @@ namespace SheetSync.Services.Update
             Dictionary<string, object> updateData,
             bool verbose = true)
         {
-            try
+            // 単一行の更新を複数行更新メソッドで処理
+            var updates = new Dictionary<string, Dictionary<string, object>>
             {
-                // サービスアカウント認証を確認
-                if (!GoogleServiceAccountAuth.IsAuthenticated)
-                {
-                    if (verbose) Debug.LogError("サービスアカウント認証が必要です。");
-                    return false;
-                }
-                
-                var service = GoogleServiceAccountAuth.GetAuthenticatedService();
-                
-                // シート名からシートIDを取得
-                var sheetId = await GoogleSheetsUtility.GetSheetIdFromNameAsync(service, spreadsheetId, sheetName);
-                
-                if (sheetId == null)
-                {
-                    if (verbose) Debug.LogError($"シート '{sheetName}' のID取得に失敗しました。");
-                    return false;
-                }
-                
-                // まず、キー列の値で該当行を検索
-                var searchRange = $"{sheetName}!A:Z";
-                var getRequest = service.Spreadsheets.Values.Get(spreadsheetId, searchRange);
-                var response = await getRequest.ExecuteAsync();
-                
-                if (response.Values == null || response.Values.Count == 0)
-                {
-                    if (verbose) Debug.LogError("スプレッドシートにデータが見つかりません。");
-                    return false;
-                }
-                
-                // ヘッダー行（最初の行）を取得
-                var headers = response.Values[0];
-                var keyColumnIndex = -1;
-                
-                // キー列のインデックスを見つける
-                for (int i = 0; i < headers.Count; i++)
-                {
-                    if (headers[i].ToString() == keyColumn)
-                    {
-                        keyColumnIndex = i;
-                        break;
-                    }
-                }
-                
-                if (keyColumnIndex == -1)
-                {
-                    if (verbose) Debug.LogError($"キー列 '{keyColumn}' が見つかりません。");
-                    return false;
-                }
-                
-                // 該当する行を検索
-                int targetRowIndex = -1;
-                for (int i = 1; i < response.Values.Count; i++)
-                {
-                    var row = response.Values[i];
-                    if (row.Count > keyColumnIndex && row[keyColumnIndex].ToString() == keyValue)
-                    {
-                        targetRowIndex = i;
-                        break;
-                    }
-                }
-                
-                if (targetRowIndex == -1)
-                {
-                    if (verbose) Debug.LogError($"{keyColumn}='{keyValue}' の行が見つかりません。");
-                    return false;
-                }
-                
-                // 更新データを準備
-                var updateRequests = new List<Request>();
-                
-                foreach (var kvp in updateData)
-                {
-                    // 更新する列のインデックスを見つける
-                    var columnIndex = -1;
-                    for (int i = 0; i < headers.Count; i++)
-                    {
-                        if (headers[i].ToString() == kvp.Key)
-                        {
-                            columnIndex = i;
-                            break;
-                        }
-                    }
-                    
-                    if (columnIndex == -1)
-                    {
-                        if (verbose) Debug.LogWarning($"列 '{kvp.Key}' が見つかりません。スキップします。");
-                        continue;
-                    }
-                    
-                    // セルの更新リクエストを作成
-                    updateRequests.Add(new Request
-                    {
-                        UpdateCells = new UpdateCellsRequest
-                        {
-                            Range = new GridRange
-                            {
-                                SheetId = sheetId.Value,
-                                StartRowIndex = targetRowIndex,
-                                EndRowIndex = targetRowIndex + 1,
-                                StartColumnIndex = columnIndex,
-                                EndColumnIndex = columnIndex + 1
-                            },
-                            Rows = new List<RowData>
-                            {
-                                new RowData
-                                {
-                                    Values = new List<CellData>
-                                    {
-                                        new CellData
-                                        {
-                                            UserEnteredValue = new ExtendedValue
-                                            {
-                                                StringValue = kvp.Value?.ToString()
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            Fields = "userEnteredValue"
-                        }
-                    });
-                }
-                
-                if (updateRequests.Count == 0)
-                {
-                    if (verbose) Debug.LogWarning("更新するデータがありません。");
-                    return false;
-                }
-                
-                // バッチ更新を実行
-                var batchUpdateRequest = new BatchUpdateSpreadsheetRequest
-                {
-                    Requests = updateRequests
-                };
-                
-                var updateRequest = service.Spreadsheets.BatchUpdate(batchUpdateRequest, spreadsheetId);
-                await updateRequest.ExecuteAsync();
-                
-                if (verbose) Debug.Log($"更新成功: {keyColumn}='{keyValue}' の行を更新しました。");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                if (verbose) Debug.LogError($"更新エラー: {ex.Message}");
-                if (verbose) Debug.LogException(ex);
-                return false;
-            }
+                [keyValue] = updateData
+            };
+            
+            return await UpdateMultipleRowsAsync(spreadsheetId, sheetName, keyColumn, updates, verbose);
         }
         
         /// <summary>
@@ -185,213 +60,339 @@ namespace SheetSync.Services.Update
             string spreadsheetId,
             string sheetName,
             string keyColumn,
-            Dictionary<string, Dictionary<string, object>> updates, bool verbose = true)
+            Dictionary<string, Dictionary<string, object>> updates, 
+            bool verbose = true)
         {
             try
             {
-                // サービスアカウント認証を確認
-                if (!GoogleServiceAccountAuth.IsAuthenticated)
+                // 初期検証
+                if (!ValidateInputs(updates, verbose))
                 {
-                    if (verbose) Debug.LogError("サービスアカウント認証が必要です。");
                     return false;
                 }
                 
-                if (updates == null || updates.Count == 0)
+                // スプレッドシートのメタデータを取得
+                var metadata = await GetSheetMetadataAsync(spreadsheetId, sheetName, keyColumn, verbose);
+                if (metadata == null)
                 {
-                    if (verbose) Debug.LogWarning("更新するデータがありません。");
-                    return true;
-                }
-                
-                var service = GoogleServiceAccountAuth.GetAuthenticatedService();
-                
-                // シート名からシートIDを取得
-                var sheetId = await GoogleSheetsUtility.GetSheetIdFromNameAsync(service, spreadsheetId, sheetName);
-                
-                if (sheetId == null)
-                {
-                    if (verbose) Debug.LogError($"シート '{sheetName}' のID取得に失敗しました。");
                     return false;
                 }
                 
-                // スプレッドシートのデータを一度だけ取得
-                var searchRange = $"{sheetName}!A:Z";
-                var getRequest = service.Spreadsheets.Values.Get(spreadsheetId, searchRange);
-                var response = await getRequest.ExecuteAsync();
+                // 更新対象列のインデックスマップを構築
+                BuildColumnIndexMap(metadata, updates);
                 
-                if (response.Values == null || response.Values.Count == 0)
-                {
-                    if (verbose) Debug.LogError("スプレッドシートにデータが見つかりません。");
-                    return false;
-                }
+                // バッチ更新リクエストを作成
+                var updateResult = BuildBatchUpdateRequests(metadata, keyColumn, updates, verbose);
                 
-                // ヘッダー行（最初の行）を取得
-                var headers = response.Values[0];
-                
-                // キー列のインデックスを見つける
-                var keyColumnIndex = -1;
-                for (int i = 0; i < headers.Count; i++)
-                {
-                    if (headers[i].ToString() == keyColumn)
-                    {
-                        keyColumnIndex = i;
-                        break;
-                    }
-                }
-                
-                if (keyColumnIndex == -1)
-                {
-                    if (verbose) Debug.LogError($"キー列 '{keyColumn}' が見つかりません。");
-                    return false;
-                }
-                
-                // 更新対象の列名とインデックスのマッピングを作成
-                var columnIndexMap = new Dictionary<string, int>();
-                var allUpdateColumns = new HashSet<string>();
-                foreach (var update in updates.Values)
-                {
-                    foreach (var columnName in update.Keys)
-                    {
-                        allUpdateColumns.Add(columnName);
-                    }
-                }
-                
-                foreach (var columnName in allUpdateColumns)
-                {
-                    for (int i = 0; i < headers.Count; i++)
-                    {
-                        if (headers[i].ToString() == columnName)
-                        {
-                            columnIndexMap[columnName] = i;
-                            break;
-                        }
-                    }
-                }
-                
-                // バッチ更新リクエストを準備
-                var updateRequests = new List<Request>();
-                var successCount = 0;
-                var failCount = 0;
-                var failedKeys = new List<string>();
-                
-                // 各更新対象行を処理
-                foreach (var kvp in updates)
-                {
-                    var keyValue = kvp.Key;
-                    var updateData = kvp.Value;
-                    
-                    // 該当する行を検索
-                    int targetRowIndex = -1;
-                    for (int i = 1; i < response.Values.Count; i++)
-                    {
-                        var row = response.Values[i];
-                        if (row.Count > keyColumnIndex && row[keyColumnIndex].ToString() == keyValue)
-                        {
-                            targetRowIndex = i;
-                            break;
-                        }
-                    }
-                    
-                    if (targetRowIndex == -1)
-                    {
-                        if (verbose) Debug.LogWarning($"{keyColumn}='{keyValue}' の行が見つかりません。スキップします。");
-                        failCount++;
-                        failedKeys.Add(keyValue);
-                        continue;
-                    }
-                    
-                    // この行の更新リクエストを作成
-                    bool hasValidUpdate = false;
-                    foreach (var updateKvp in updateData)
-                    {
-                        var columnName = updateKvp.Key;
-                        var value = updateKvp.Value;
-                        
-                        if (!columnIndexMap.ContainsKey(columnName))
-                        {
-                            if (verbose) Debug.LogWarning($"列 '{columnName}' が見つかりません。スキップします。");
-                            continue;
-                        }
-                        
-                        var columnIndex = columnIndexMap[columnName];
-                        hasValidUpdate = true;
-                        
-                        // セルの更新リクエストを作成
-                        updateRequests.Add(new Request
-                        {
-                            UpdateCells = new UpdateCellsRequest
-                            {
-                                Range = new GridRange
-                                {
-                                    SheetId = sheetId.Value,
-                                    StartRowIndex = targetRowIndex,
-                                    EndRowIndex = targetRowIndex + 1,
-                                    StartColumnIndex = columnIndex,
-                                    EndColumnIndex = columnIndex + 1
-                                },
-                                Rows = new List<RowData>
-                                {
-                                    new RowData
-                                    {
-                                        Values = new List<CellData>
-                                        {
-                                            new CellData
-                                            {
-                                                UserEnteredValue = new ExtendedValue
-                                                {
-                                                    StringValue = value?.ToString()
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                                Fields = "userEnteredValue"
-                            }
-                        });
-                    }
-                    
-                    if (hasValidUpdate)
-                    {
-                        successCount++;
-                    }
-                    else
-                    {
-                        failCount++;
-                        failedKeys.Add(keyValue);
-                    }
-                }
-                
-                if (updateRequests.Count == 0)
+                if (updateResult.Requests.Count == 0)
                 {
                     if (verbose) Debug.LogWarning("有効な更新リクエストがありません。");
                     return false;
                 }
                 
-                // バッチ更新を実行（1回のAPI呼び出し）
-                var batchUpdateRequest = new BatchUpdateSpreadsheetRequest
-                {
-                    Requests = updateRequests
-                };
+                // バッチ更新を実行
+                await ExecuteBatchUpdateAsync(metadata.Service, spreadsheetId, updateResult.Requests);
                 
-                var updateRequest = service.Spreadsheets.BatchUpdate(batchUpdateRequest, spreadsheetId);
-                await updateRequest.ExecuteAsync();
+                // 結果をログ出力
+                LogUpdateResults(updateResult, verbose);
                 
-                if (verbose)
-                {
-                    Debug.Log($"一括更新完了: 成功={successCount}, 失敗={failCount}");
-                    if (failedKeys.Count > 0)
-                    {
-                        Debug.LogWarning($"失敗したキー: {string.Join(", ", failedKeys)}");
-                    }
-                }
-                
-                return failCount == 0;
+                return updateResult.FailCount == 0;
             }
             catch (Exception ex)
             {
-                if (verbose) Debug.LogError($"一括更新エラー: {ex.Message}");
+                if (verbose) Debug.LogError($"更新エラー: {ex.Message}");
                 if (verbose) Debug.LogException(ex);
                 return false;
             }
         }
+        
+        #region プライベートメソッド
+        
+        /// <summary>
+        /// 入力パラメータの検証
+        /// </summary>
+        private bool ValidateInputs(Dictionary<string, Dictionary<string, object>> updates, bool verbose)
+        {
+            // サービスアカウント認証を確認
+            if (!GoogleServiceAccountAuth.IsAuthenticated)
+            {
+                if (verbose) Debug.LogError("サービスアカウント認証が必要です。");
+                return false;
+            }
+            
+            if (updates == null || updates.Count == 0)
+            {
+                if (verbose) Debug.LogWarning("更新するデータがありません。");
+                return true;
+            }
+            
+            return true;
+        }
+        
+        /// <summary>
+        /// スプレッドシートのメタデータを取得
+        /// </summary>
+        private async Task<SheetMetadata> GetSheetMetadataAsync(
+            string spreadsheetId, 
+            string sheetName, 
+            string keyColumn, 
+            bool verbose)
+        {
+            var service = GoogleServiceAccountAuth.GetAuthenticatedService();
+            
+            // シート名からシートIDを取得
+            var sheetId = await GoogleSheetsUtility.GetSheetIdFromNameAsync(service, spreadsheetId, sheetName);
+            
+            if (sheetId == null)
+            {
+                if (verbose) Debug.LogError($"シート '{sheetName}' のID取得に失敗しました。");
+                return null;
+            }
+            
+            // スプレッドシートのデータを取得
+            var searchRange = $"{sheetName}!A:Z";
+            var getRequest = service.Spreadsheets.Values.Get(spreadsheetId, searchRange);
+            var response = await getRequest.ExecuteAsync();
+            
+            if (response.Values == null || response.Values.Count == 0)
+            {
+                if (verbose) Debug.LogError("スプレッドシートにデータが見つかりません。");
+                return null;
+            }
+            
+            // ヘッダー行を取得
+            var headers = response.Values[0];
+            
+            // キー列のインデックスを見つける
+            var keyColumnIndex = FindColumnIndex(headers, keyColumn);
+            if (keyColumnIndex == -1)
+            {
+                if (verbose) Debug.LogError($"キー列 '{keyColumn}' が見つかりません。");
+                return null;
+            }
+            
+            return new SheetMetadata
+            {
+                Service = service,
+                SheetId = sheetId,
+                Values = response.Values,
+                Headers = headers,
+                KeyColumnIndex = keyColumnIndex,
+                ColumnIndexMap = new Dictionary<string, int>()
+            };
+        }
+        
+        /// <summary>
+        /// 列名からインデックスを検索
+        /// </summary>
+        private int FindColumnIndex(IList<object> headers, string columnName)
+        {
+            for (int i = 0; i < headers.Count; i++)
+            {
+                if (headers[i].ToString() == columnName)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        
+        /// <summary>
+        /// 更新対象列のインデックスマップを構築
+        /// </summary>
+        private void BuildColumnIndexMap(SheetMetadata metadata, Dictionary<string, Dictionary<string, object>> updates)
+        {
+            var allUpdateColumns = new HashSet<string>();
+            foreach (var update in updates.Values)
+            {
+                foreach (var columnName in update.Keys)
+                {
+                    allUpdateColumns.Add(columnName);
+                }
+            }
+            
+            foreach (var columnName in allUpdateColumns)
+            {
+                var index = FindColumnIndex(metadata.Headers, columnName);
+                if (index != -1)
+                {
+                    metadata.ColumnIndexMap[columnName] = index;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// バッチ更新リクエストの構築結果
+        /// </summary>
+        private class BatchUpdateResult
+        {
+            public List<Request> Requests { get; set; } = new List<Request>();
+            public int SuccessCount { get; set; }
+            public int FailCount { get; set; }
+            public List<string> FailedKeys { get; set; } = new List<string>();
+        }
+        
+        /// <summary>
+        /// バッチ更新リクエストを構築
+        /// </summary>
+        private BatchUpdateResult BuildBatchUpdateRequests(
+            SheetMetadata metadata,
+            string keyColumn,
+            Dictionary<string, Dictionary<string, object>> updates,
+            bool verbose)
+        {
+            var result = new BatchUpdateResult();
+            
+            foreach (var kvp in updates)
+            {
+                var keyValue = kvp.Key;
+                var updateData = kvp.Value;
+                
+                // 該当する行を検索
+                var targetRowIndex = FindTargetRow(metadata, keyValue);
+                
+                if (targetRowIndex == -1)
+                {
+                    if (verbose) Debug.LogWarning($"{keyColumn}='{keyValue}' の行が見つかりません。スキップします。");
+                    result.FailCount++;
+                    result.FailedKeys.Add(keyValue);
+                    continue;
+                }
+                
+                // この行の更新リクエストを作成
+                bool hasValidUpdate = false;
+                foreach (var updateKvp in updateData)
+                {
+                    var columnName = updateKvp.Key;
+                    var value = updateKvp.Value;
+                    
+                    if (!metadata.ColumnIndexMap.ContainsKey(columnName))
+                    {
+                        if (verbose) Debug.LogWarning($"列 '{columnName}' が見つかりません。スキップします。");
+                        continue;
+                    }
+                    
+                    var columnIndex = metadata.ColumnIndexMap[columnName];
+                    hasValidUpdate = true;
+                    
+                    // セルの更新リクエストを作成
+                    result.Requests.Add(CreateCellUpdateRequest(
+                        metadata.SheetId.Value,
+                        targetRowIndex,
+                        columnIndex,
+                        value
+                    ));
+                }
+                
+                if (hasValidUpdate)
+                {
+                    result.SuccessCount++;
+                }
+                else
+                {
+                    result.FailCount++;
+                    result.FailedKeys.Add(keyValue);
+                }
+            }
+            
+            return result;
+        }
+        
+        /// <summary>
+        /// キー値に対応する行を検索
+        /// </summary>
+        private int FindTargetRow(SheetMetadata metadata, string keyValue)
+        {
+            for (int i = 1; i < metadata.Values.Count; i++)
+            {
+                var row = metadata.Values[i];
+                if (row.Count > metadata.KeyColumnIndex && 
+                    row[metadata.KeyColumnIndex].ToString() == keyValue)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        
+        /// <summary>
+        /// セル更新リクエストを作成
+        /// </summary>
+        private Request CreateCellUpdateRequest(int sheetId, int rowIndex, int columnIndex, object value)
+        {
+            return new Request
+            {
+                UpdateCells = new UpdateCellsRequest
+                {
+                    Range = new GridRange
+                    {
+                        SheetId = sheetId,
+                        StartRowIndex = rowIndex,
+                        EndRowIndex = rowIndex + 1,
+                        StartColumnIndex = columnIndex,
+                        EndColumnIndex = columnIndex + 1
+                    },
+                    Rows = new List<RowData>
+                    {
+                        new RowData
+                        {
+                            Values = new List<CellData>
+                            {
+                                new CellData
+                                {
+                                    UserEnteredValue = new ExtendedValue
+                                    {
+                                        StringValue = value?.ToString()
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    Fields = "userEnteredValue"
+                }
+            };
+        }
+        
+        /// <summary>
+        /// バッチ更新を実行
+        /// </summary>
+        private async Task ExecuteBatchUpdateAsync(
+            SheetsService service,
+            string spreadsheetId,
+            List<Request> requests)
+        {
+            var batchUpdateRequest = new BatchUpdateSpreadsheetRequest
+            {
+                Requests = requests
+            };
+            
+            var updateRequest = service.Spreadsheets.BatchUpdate(batchUpdateRequest, spreadsheetId);
+            await updateRequest.ExecuteAsync();
+        }
+        
+        /// <summary>
+        /// 更新結果をログ出力
+        /// </summary>
+        private void LogUpdateResults(BatchUpdateResult result, bool verbose)
+        {
+            if (!verbose) return;
+            
+            if (result.SuccessCount == 1 && result.FailCount == 0)
+            {
+                // 単一行の更新成功（UpdateRowAsyncからの呼び出し）
+                Debug.Log($"更新成功: 行を更新しました。");
+            }
+            else
+            {
+                // 複数行の更新結果
+                Debug.Log($"一括更新完了: 成功={result.SuccessCount}, 失敗={result.FailCount}");
+                if (result.FailedKeys.Count > 0)
+                {
+                    Debug.LogWarning($"失敗したキー: {string.Join(", ", result.FailedKeys)}");
+                }
+            }
+        }
+        
+        #endregion
     }
 }

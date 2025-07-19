@@ -121,7 +121,7 @@ namespace Kohei.SheetSync.Tests.Editor.Update
             
             // Assert
             Assert.IsTrue(result);
-            LogAssert.Expect(LogType.Log, "更新成功: humanId='1' の行を更新しました。");
+            LogAssert.Expect(LogType.Log, "更新成功: 行を更新しました。");
         }
         
         [Test]
