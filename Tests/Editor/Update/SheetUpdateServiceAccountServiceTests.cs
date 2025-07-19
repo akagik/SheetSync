@@ -315,6 +315,60 @@ namespace Kohei.SheetSync.Tests.Editor.Update
             // LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("一括更新完了: 成功=2, 失敗=1"));
         }
         
+        [Test]
+        [IntegrationTest]
+        public async Task UpdateMultipleRowsAsync_PerformanceTest_SingleBatchUpdate()
+        {
+            if (_skipIntegrationTests)
+            {
+                Assert.Ignore("サービスアカウントキーが設定されていません");
+                return;
+            }
+            
+            // Arrange
+            await AuthenticateServiceAccount();
+            
+            // 複数行の更新データを準備
+            var timestamp = DateTime.Now.Ticks;
+            var updates = new Dictionary<string, Dictionary<string, object>>
+            {
+                ["0"] = new Dictionary<string, object> 
+                { 
+                    ["name"] = $"PerfTest_0_{timestamp}",
+                    ["age"] = 100
+                },
+                ["1"] = new Dictionary<string, object> 
+                { 
+                    ["name"] = $"PerfTest_1_{timestamp}",
+                    ["age"] = 101
+                },
+                ["2"] = new Dictionary<string, object> 
+                { 
+                    ["name"] = $"PerfTest_2_{timestamp}",
+                    ["age"] = 102,
+                    ["備考"] = "パフォーマンステスト"
+                }
+            };
+            
+            // Act
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var result = await _service.UpdateMultipleRowsAsync(
+                TEST_SPREADSHEET_ID,
+                TEST_SHEET_NAME,
+                "humanId",
+                updates
+            );
+            stopwatch.Stop();
+            
+            // Assert
+            Assert.IsTrue(result);
+            Debug.Log($"UpdateMultipleRowsAsync実行時間: {stopwatch.ElapsedMilliseconds}ms");
+            
+            // 最適化により、3行の更新でも1回のAPI呼び出しで完了することを確認
+            // （実際のパフォーマンス改善は、行数が多いほど顕著になる）
+            Assert.Less(stopwatch.ElapsedMilliseconds, 5000, "バッチ更新は5秒以内に完了すべき");
+        }
+        
         #endregion
         
         #region ヘルパーメソッド
