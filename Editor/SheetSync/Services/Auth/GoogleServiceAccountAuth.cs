@@ -38,7 +38,7 @@ namespace SheetSync.Services.Auth
         /// <summary>
         /// サービスアカウント認証を実行
         /// </summary>
-        public static async Task<bool> AuthorizeAsync()
+        public static async Task<bool> AuthorizeAsync(bool verbose = true)
         {
             try
             {
@@ -68,7 +68,7 @@ namespace SheetSync.Services.Auth
                 var service = GetAuthenticatedService();
                 if (service != null)
                 {
-                    Debug.Log("サービスアカウント認証に成功しました。");
+                    if (verbose) Debug.Log("サービスアカウント認証に成功しました。");
                     return true;
                 }
                 
@@ -116,7 +116,7 @@ namespace SheetSync.Services.Auth
             lock (_lock)
             {
                 _credential = null;
-                Debug.Log("サービスアカウント認証をクリアしました。");
+                // Debug.Log("サービスアカウント認証をクリアしました。");
             }
         }
         

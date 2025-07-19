@@ -23,14 +23,15 @@ namespace SheetSync.Services.Update
             string sheetName, 
             string keyColumn, 
             string keyValue, 
-            Dictionary<string, object> updateData)
+            Dictionary<string, object> updateData,
+            bool verbose = true)
         {
             try
             {
                 // サービスアカウント認証を確認
                 if (!GoogleServiceAccountAuth.IsAuthenticated)
                 {
-                    Debug.LogError("サービスアカウント認証が必要です。");
+                    if (verbose) Debug.LogError("サービスアカウント認証が必要です。");
                     return false;
                 }
                 
@@ -41,7 +42,7 @@ namespace SheetSync.Services.Update
                 
                 if (sheetId == null)
                 {
-                    Debug.LogError($"シート '{sheetName}' のID取得に失敗しました。");
+                    if (verbose) Debug.LogError($"シート '{sheetName}' のID取得に失敗しました。");
                     return false;
                 }
                 
@@ -52,7 +53,7 @@ namespace SheetSync.Services.Update
                 
                 if (response.Values == null || response.Values.Count == 0)
                 {
-                    Debug.LogError("スプレッドシートにデータが見つかりません。");
+                    if (verbose) Debug.LogError("スプレッドシートにデータが見つかりません。");
                     return false;
                 }
                 
@@ -72,7 +73,7 @@ namespace SheetSync.Services.Update
                 
                 if (keyColumnIndex == -1)
                 {
-                    Debug.LogError($"キー列 '{keyColumn}' が見つかりません。");
+                    if (verbose) Debug.LogError($"キー列 '{keyColumn}' が見つかりません。");
                     return false;
                 }
                 
@@ -90,7 +91,7 @@ namespace SheetSync.Services.Update
                 
                 if (targetRowIndex == -1)
                 {
-                    Debug.LogError($"{keyColumn}='{keyValue}' の行が見つかりません。");
+                    if (verbose) Debug.LogError($"{keyColumn}='{keyValue}' の行が見つかりません。");
                     return false;
                 }
                 
@@ -112,7 +113,7 @@ namespace SheetSync.Services.Update
                     
                     if (columnIndex == -1)
                     {
-                        Debug.LogWarning($"列 '{kvp.Key}' が見つかりません。スキップします。");
+                        if (verbose) Debug.LogWarning($"列 '{kvp.Key}' が見つかりません。スキップします。");
                         continue;
                     }
                     
@@ -152,7 +153,7 @@ namespace SheetSync.Services.Update
                 
                 if (updateRequests.Count == 0)
                 {
-                    Debug.LogWarning("更新するデータがありません。");
+                    if (verbose) Debug.LogWarning("更新するデータがありません。");
                     return false;
                 }
                 
@@ -165,13 +166,13 @@ namespace SheetSync.Services.Update
                 var updateRequest = service.Spreadsheets.BatchUpdate(batchUpdateRequest, spreadsheetId);
                 await updateRequest.ExecuteAsync();
                 
-                Debug.Log($"更新成功: {keyColumn}='{keyValue}' の行を更新しました。");
+                if (verbose) Debug.Log($"更新成功: {keyColumn}='{keyValue}' の行を更新しました。");
                 return true;
             }
             catch (Exception ex)
             {
-                Debug.LogError($"更新エラー: {ex.Message}");
-                Debug.LogException(ex);
+                if (verbose) Debug.LogError($"更新エラー: {ex.Message}");
+                if (verbose) Debug.LogException(ex);
                 return false;
             }
         }
@@ -183,7 +184,7 @@ namespace SheetSync.Services.Update
             string spreadsheetId,
             string sheetName,
             string keyColumn,
-            Dictionary<string, Dictionary<string, object>> updates)
+            Dictionary<string, Dictionary<string, object>> updates, bool verbose = true)
         {
             int successCount = 0;
             int failCount = 0;
@@ -193,7 +194,8 @@ namespace SheetSync.Services.Update
                 var keyValue = kvp.Key;
                 var updateData = kvp.Value;
                 
-                var result = await UpdateRowAsync(spreadsheetId, sheetName, keyColumn, keyValue, updateData);
+                var result = await UpdateRowAsync(
+                    spreadsheetId, sheetName, keyColumn, keyValue, updateData, verbose: verbose);
                 if (result)
                 {
                     successCount++;
@@ -203,8 +205,11 @@ namespace SheetSync.Services.Update
                     failCount++;
                 }
             }
-            
-            Debug.Log($"一括更新完了: 成功={successCount}, 失敗={failCount}");
+
+            if (verbose)
+            {
+                Debug.Log($"一括更新完了: 成功={successCount}, 失敗={failCount}");
+            }
             return failCount == 0;
         }
     }

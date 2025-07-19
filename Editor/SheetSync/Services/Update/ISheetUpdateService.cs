@@ -16,14 +16,16 @@ namespace SheetSync.Services.Update
         /// <param name="keyColumn">キー列名</param>
         /// <param name="keyValue">キー値</param>
         /// <param name="updateData">更新データ（列名と値のペア）</param>
+        /// <param name="verbose"></param>
         /// <returns>更新が成功したかどうか</returns>
         Task<bool> UpdateRowAsync(
             string spreadsheetId, 
             string sheetName, 
             string keyColumn, 
             string keyValue, 
-            Dictionary<string, object> updateData);
-        
+            Dictionary<string, object> updateData,
+            bool verbose = true);
+
         /// <summary>
         /// 複数行を一括更新
         /// </summary>
@@ -31,11 +33,13 @@ namespace SheetSync.Services.Update
         /// <param name="sheetName">シート名</param>
         /// <param name="keyColumn">キー列名</param>
         /// <param name="updates">キー値と更新データのマップ</param>
+        /// <param name="verbose"></param>
         /// <returns>更新が成功したかどうか</returns>
         Task<bool> UpdateMultipleRowsAsync(
             string spreadsheetId,
             string sheetName,
             string keyColumn,
-            Dictionary<string, Dictionary<string, object>> updates);
+            Dictionary<string, Dictionary<string, object>> updates,
+            bool verbose = true);
     }
 }

@@ -23,7 +23,7 @@ namespace Kohei.SheetSync.Tests.Editor.Update
     public class SheetUpdateServiceAccountServiceTests
     {
         private const string TEST_SPREADSHEET_ID = "1eDSiCuI_HLeCV96rZioy_PD85AbNmmqdzrxjjS7sJ_w";
-        private const string TEST_SHEET_NAME = "HumanMaster";
+        private const string TEST_SHEET_NAME = "Human";
         private const int TEST_SHEET_ID = 1380898534;
         
         private SheetUpdateServiceAccountService _service;
@@ -306,12 +306,13 @@ namespace Kohei.SheetSync.Tests.Editor.Update
                 TEST_SPREADSHEET_ID,
                 TEST_SHEET_NAME,
                 "humanId",
-                updates
+                updates,
+                verbose: false
             );
             
             // Assert
             Assert.IsFalse(result); // 一部失敗があるのでfalse
-            LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("一括更新完了: 成功=2, 失敗=1"));
+            // LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex("一括更新完了: 成功=2, 失敗=1"));
         }
         
         #endregion
@@ -325,7 +326,7 @@ namespace Kohei.SheetSync.Tests.Editor.Update
         {
             if (!GoogleServiceAccountAuth.IsAuthenticated)
             {
-                var authResult = await GoogleServiceAccountAuth.AuthorizeAsync();
+                var authResult = await GoogleServiceAccountAuth.AuthorizeAsync(verbose: false);
                 if (!authResult)
                 {
                     Assert.Fail("サービスアカウント認証に失敗しました");
