@@ -15,7 +15,7 @@ namespace SheetSync.Services.Update
     /// <summary>
     /// OAuth2認証を使用したGoogle Spreadsheetsの更新サービス
     /// </summary>
-    public class SheetUpdateOAuth2Service
+    public class SheetUpdateOAuth2Service : ISheetUpdateService
     {
         private readonly ConvertSetting _setting;
         private readonly SheetsService _sheetsService;
@@ -266,6 +266,56 @@ namespace SheetSync.Services.Update
                 // 変換に失敗した場合は文字列として比較
                 return cellValue.ToString() == searchValue.ToString();
             }
+        }
+        
+        /// <summary>
+        /// スプレッドシートの特定の行を更新（ISheetUpdateService実装）
+        /// </summary>
+        public async Task<bool> UpdateRowAsync(
+            string spreadsheetId, 
+            string sheetName, 
+            string keyColumn, 
+            string keyValue, 
+            Dictionary<string, object> updateData)
+        {
+            // 既存の更新ロジックを使用
+            var query = new SimpleUpdateQuery<object>
+            {
+                FieldName = keyColumn,
+                SearchValue = keyValue,
+                UpdateFieldName = updateData.Keys.First(),
+                UpdateValue = updateData.Values.First()
+            };
+            
+            var result = await UpdateSingleRowAsync(query);
+            return result.Success;
+        }
+        
+        /// <summary>
+        /// 複数行を一括更新（ISheetUpdateService実装）
+        /// </summary>
+        public async Task<bool> UpdateMultipleRowsAsync(
+            string spreadsheetId,
+            string sheetName,
+            string keyColumn,
+            Dictionary<string, Dictionary<string, object>> updates)
+        {
+            int successCount = 0;
+            
+            foreach (var kvp in updates)
+            {
+                var keyValue = kvp.Key;
+                var updateData = kvp.Value;
+                
+                var result = await UpdateRowAsync(spreadsheetId, sheetName, keyColumn, keyValue, updateData);
+                if (result)
+                {
+                    successCount++;
+                }
+            }
+            
+            Debug.Log($"一括更新完了: 成功={successCount}, 失敗={updates.Count - successCount}");
+            return successCount == updates.Count;
         }
     }
 }

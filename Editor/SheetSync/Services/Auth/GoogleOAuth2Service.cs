@@ -121,6 +121,38 @@ namespace SheetSync.Services.Auth
                     return false;
                 }
                 
+                // credentials.jsonの検証
+                try
+                {
+                    using (var stream = new FileStream(credPath, FileMode.Open, FileAccess.Read))
+                    {
+                        var clientSecrets = GoogleClientSecrets.FromStream(stream);
+                        if (clientSecrets?.Secrets == null)
+                        {
+                            Debug.LogError("credentials.jsonの形式が正しくありません。");
+                            ShowInvalidCredentialsDialog();
+                            return false;
+                        }
+                        
+                        // インストール型またはウェブ型のクライアントシークレットをチェック
+                        if (string.IsNullOrEmpty(clientSecrets.Secrets.ClientId) || 
+                            string.IsNullOrEmpty(clientSecrets.Secrets.ClientSecret))
+                        {
+                            Debug.LogError("credentials.jsonにclient_idまたはclient_secretが含まれていません。\n" +
+                                         "OAuth2クライアントの種類が'デスクトップアプリ'であることを確認してください。");
+                            ShowInvalidCredentialsDialog();
+                            return false;
+                        }
+                    }
+                }
+                catch (Exception validationEx)
+                {
+                    Debug.LogError($"credentials.jsonの読み込みエラー: {validationEx.Message}\n" +
+                                 "ファイルが正しいJSON形式であることを確認してください。");
+                    ShowInvalidCredentialsDialog();
+                    return false;
+                }
+                
                 // Google認証ライブラリの標準フローを使用
                 using (var stream = new FileStream(credPath, FileMode.Open, FileAccess.Read))
                 {
@@ -139,6 +171,15 @@ namespace SheetSync.Services.Auth
             catch (Exception ex)
             {
                 Debug.LogError($"OAuth2認証エラー: {ex.Message}");
+                if (ex.Message.Contains("At least one client secrets"))
+                {
+                    Debug.LogError("\n【解決方法】\n" +
+                                 "1. Google Cloud Consoleで'デスクトップアプリ'タイプのOAuth2クライアントを作成\n" +
+                                 "2. credentials.jsonをダウンロード\n" +
+                                 "3. ProjectSettings/SheetSync/credentials.jsonに配置\n" +
+                                 "\n詳細は Documentation/OAuth2_Setup_Guide.md を参照してください。");
+                    ShowInvalidCredentialsDialog();
+                }
                 Debug.LogException(ex);
                 return false;
             }
@@ -203,15 +244,26 @@ namespace SheetSync.Services.Auth
             int result = EditorUtility.DisplayDialogComplex(
                 "OAuth2認証の設定",
                 "Google Cloud Consoleからcredentials.jsonをダウンロードして、\n" +
-                $"{GetCredentialsPath()}\nに配置してください。",
-                "設定方法を開く",
+                $"{GetCredentialsPath()}\nに配置してください。\n\n" +
+                "【重要】OAuth2クライアントの種類は'デスクトップアプリ'を選択してください。",
+                "設定ガイドを開く",
                 "OK",
                 "フォルダを開く"
             );
             
             if (result == 0) // 設定方法を開く
             {
-                Application.OpenURL("https://developers.google.com/sheets/api/quickstart/dotnet#step_1_turn_on_the");
+                // ローカルのセットアップガイドを開く
+                var guidePath = Path.Combine(Application.dataPath.Replace("/Assets", ""), 
+                    "Packages/SheetSync/Documentation/OAuth2_Setup_Guide.md");
+                if (File.Exists(guidePath))
+                {
+                    EditorUtility.RevealInFinder(guidePath);
+                }
+                else
+                {
+                    Application.OpenURL("https://console.cloud.google.com/apis/credentials");
+                }
             }
             else if (result == 2) // フォルダを開く
             {
@@ -221,6 +273,39 @@ namespace SheetSync.Services.Auth
                     Directory.CreateDirectory(dir);
                 }
                 EditorUtility.RevealInFinder(dir);
+            }
+        }
+        
+        /// <summary>
+        /// 無効なcredentials.jsonのエラーダイアログを表示
+        /// </summary>
+        private static void ShowInvalidCredentialsDialog()
+        {
+            int result = EditorUtility.DisplayDialogComplex(
+                "credentials.jsonエラー",
+                "credentials.jsonの形式が正しくありません。\n\n" +
+                "【確認事項】\n" +
+                "1. OAuth2クライアントの種類が'デスクトップアプリ'であること\n" +
+                "2. ダウンロードしたJSONファイルを正しく配置していること\n" +
+                "3. ファイルが破損していないこと\n\n" +
+                "詳細な手順はセットアップガイドを参照してください。",
+                "セットアップガイドを開く",
+                "Google Cloud Consoleを開く",
+                "OK"
+            );
+            
+            if (result == 0) // セットアップガイドを開く
+            {
+                var guidePath = Path.Combine(Application.dataPath.Replace("/Assets", ""), 
+                    "Packages/SheetSync/Documentation/OAuth2_Setup_Guide.md");
+                if (File.Exists(guidePath))
+                {
+                    EditorUtility.RevealInFinder(guidePath);
+                }
+            }
+            else if (result == 1) // Google Cloud Consoleを開く
+            {
+                Application.OpenURL("https://console.cloud.google.com/apis/credentials");
             }
         }
         

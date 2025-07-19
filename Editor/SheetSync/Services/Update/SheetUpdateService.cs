@@ -16,8 +16,9 @@ namespace SheetSync.Services.Update
 {
     /// <summary>
     /// Google Spreadsheetsの特定行を更新するサービス
+    /// 注意: APIキーでは読み取りのみ可能で、書き込みはできません
     /// </summary>
-    public class SheetUpdateService
+    public class SheetUpdateService : ISheetUpdateService
     {
         private readonly string _apiKey;
         private readonly ConvertSetting _setting;
@@ -123,6 +124,35 @@ namespace SheetSync.Services.Update
                 ApiKey = _apiKey,
                 ApplicationName = "SheetSync"
             });
+        }
+        
+        /// <summary>
+        /// スプレッドシートの特定の行を更新
+        /// 注意: APIキーでは実際には更新できません
+        /// </summary>
+        public async Task<bool> UpdateRowAsync(
+            string spreadsheetId, 
+            string sheetName, 
+            string keyColumn, 
+            string keyValue, 
+            Dictionary<string, object> updateData)
+        {
+            Debug.LogError("APIキーを使用した更新はサポートされていません。OAuth2認証またはサービスアカウント認証を使用してください。");
+            return false;
+        }
+        
+        /// <summary>
+        /// 複数行を一括更新
+        /// 注意: APIキーでは実際には更新できません
+        /// </summary>
+        public async Task<bool> UpdateMultipleRowsAsync(
+            string spreadsheetId,
+            string sheetName,
+            string keyColumn,
+            Dictionary<string, Dictionary<string, object>> updates)
+        {
+            Debug.LogError("APIキーを使用した更新はサポートされていません。OAuth2認証またはサービスアカウント認証を使用してください。");
+            return false;
         }
         
         /// <summary>
