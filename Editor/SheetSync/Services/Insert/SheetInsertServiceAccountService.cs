@@ -250,9 +250,9 @@ namespace SheetSync.Services.Insert
             foreach (var (rowIndex, rowData) in sortedInsertions)
             {
                 // 挿入位置の検証
-                // rowIndex は0ベースで、0 = ヘッダー行の直後（データの最初）
-                // スプレッドシートは0ベースで、0 = ヘッダー行、1 = 最初のデータ行
-                var actualInsertIndex = rowIndex + 1; // ヘッダー行をスキップ
+                // rowIndex は0ベースで、0 = 1行目（ヘッダー行）、1 = 2行目、2 = 3行目
+                // スプレッドシートAPIも0ベースなので、そのまま使用
+                var actualInsertIndex = rowIndex;
                 
                 if (actualInsertIndex > metadata.Values.Count)
                 {

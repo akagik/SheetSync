@@ -75,7 +75,7 @@ namespace Kohei.SheetSync.Tests.Editor.Insert
             var result = await _service.InsertRowAsync(
                 TEST_SPREADSHEET_ID,
                 TEST_SHEET_NAME,
-                2, // 4行目に挿入（0=2行目、1=3行目、2=4行目）
+                3, // 4行目に挿入（0=1行目、1=2行目、2=3行目）
                 rowData
             );
             
@@ -145,7 +145,7 @@ namespace Kohei.SheetSync.Tests.Editor.Insert
             var result = await _service.InsertRowAsync(
                 TEST_SPREADSHEET_ID,
                 TEST_SHEET_NAME,
-                2, // 4行目に挿入（0=2行目、1=3行目、2=4行目）
+                3, // 4行目に挿入（0=1行目、1=2行目、2=3行目）
                 rowData
             );
             
@@ -176,7 +176,7 @@ namespace Kohei.SheetSync.Tests.Editor.Insert
             var result = await _service.InsertRowAsync(
                 TEST_SPREADSHEET_ID,
                 TEST_SHEET_NAME,
-                1,
+                2,
                 rowData
             );
             
@@ -201,19 +201,19 @@ namespace Kohei.SheetSync.Tests.Editor.Insert
             var timestamp = DateTime.Now.ToString("HHmmss");
             var insertions = new List<(int rowIndex, Dictionary<string, object> rowData)>
             {
-                (1, new Dictionary<string, object> 
+                (2, new Dictionary<string, object> 
                 { 
                     ["humanId"] = "901",
                     ["name"] = $"BatchInsert1_{timestamp}",
                     ["age"] = 20
                 }),
-                (3, new Dictionary<string, object> 
+                (4, new Dictionary<string, object> 
                 { 
                     ["humanId"] = "902",
                     ["name"] = $"BatchInsert2_{timestamp}",
                     ["age"] = 21
                 }),
-                (5, new Dictionary<string, object> 
+                (6, new Dictionary<string, object> 
                 { 
                     ["humanId"] = "903",
                     ["name"] = $"BatchInsert3_{timestamp}",
@@ -249,7 +249,7 @@ namespace Kohei.SheetSync.Tests.Editor.Insert
             var timestamp = DateTime.Now.Ticks;
             var insertions = new List<(int rowIndex, Dictionary<string, object> rowData)>
             {
-                (1, new Dictionary<string, object> 
+                (2, new Dictionary<string, object> 
                 { 
                     ["humanId"] = "801",
                     ["name"] = $"ValidInsert_{timestamp}"
@@ -259,7 +259,7 @@ namespace Kohei.SheetSync.Tests.Editor.Insert
                     ["humanId"] = "802",
                     ["name"] = "OutOfRange"
                 }),
-                (2, new Dictionary<string, object>()) // 空のデータ
+                (3, new Dictionary<string, object>()) // 空のデータ
             };
             
             // Act
@@ -292,23 +292,23 @@ namespace Kohei.SheetSync.Tests.Editor.Insert
             // 異なる位置に挿入（行番号ずれのテスト）
             var insertions = new List<(int rowIndex, Dictionary<string, object> rowData)>
             {
-                (2, new Dictionary<string, object> 
+                (3, new Dictionary<string, object> 
                 { 
                     ["humanId"] = "701",
                     ["name"] = $"First_{timestamp}",
-                    ["備考"] = "最初に挿入（位置2）"
+                    ["備考"] = "最初に挿入（3行目）"
                 }),
-                (2, new Dictionary<string, object> 
+                (3, new Dictionary<string, object> 
                 { 
                     ["humanId"] = "702",
                     ["name"] = $"Second_{timestamp}",
-                    ["備考"] = "2番目に挿入（同じ位置2）"
+                    ["備考"] = "2番目に挿入（同じ3行目）"
                 }),
-                (4, new Dictionary<string, object> 
+                (5, new Dictionary<string, object> 
                 { 
                     ["humanId"] = "703",
                     ["name"] = $"Third_{timestamp}",
-                    ["備考"] = "3番目に挿入（位置4）"
+                    ["備考"] = "3番目に挿入（5行目）"
                 })
             };
             
@@ -350,7 +350,7 @@ namespace Kohei.SheetSync.Tests.Editor.Insert
             var result = await _service.InsertRowAsync(
                 TEST_SPREADSHEET_ID,
                 TEST_SHEET_NAME,
-                1,
+                2,
                 rowData
             );
             
