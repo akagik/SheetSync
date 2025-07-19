@@ -10,6 +10,7 @@ using UnityEditor;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using Google.Apis.Services;
+using SheetSync.Services;
 using Debug = UnityEngine.Debug;
 
 namespace SheetSync.Services.Update
@@ -306,37 +307,9 @@ namespace SheetSync.Services.Update
         /// </summary>
         private async Task<string> GetSheetNameAsync()
         {
-            try
-            {
-                var spreadsheet = await _sheetsService.Spreadsheets.Get(_setting.sheetID).ExecuteAsync();
-                
-                // gidを数値に変換
-                if (int.TryParse(_setting.gid, out int gidInt))
-                {
-                    foreach (var sheet in spreadsheet.Sheets)
-                    {
-                        if (sheet.Properties.SheetId == gidInt)
-                        {
-                            return sheet.Properties.Title;
-                        }
-                    }
-                }
-                
-                // gidが見つからない場合は最初のシートを使用
-                if (spreadsheet.Sheets.Count > 0)
-                {
-                    Debug.LogWarning($"指定されたgid '{_setting.gid}' が見つかりません。最初のシートを使用します。");
-                    return spreadsheet.Sheets[0].Properties.Title;
-                }
-                
-                throw new InvalidOperationException("スプレッドシートにシートが存在しません。");
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"シート名の取得に失敗しました: {ex.Message}");
-                // フォールバック
-                return "Sheet1";
-            }
+            var sheetName = await GoogleSheetsUtility.GetSheetNameFromSettingAsync(_sheetsService, _setting);
+            // フォールバック
+            return sheetName ?? "Sheet1";
         }
         
         /// <summary>

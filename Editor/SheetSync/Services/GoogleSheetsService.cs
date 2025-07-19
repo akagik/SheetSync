@@ -13,6 +13,7 @@ using SheetSync;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
+using SheetSync.Services;
 #endif
 
 namespace SheetSync
@@ -138,26 +139,13 @@ namespace SheetSync
                     ApplicationName = "SheetSync"
                 });
                 
-                // スプレッドシートの情報を取得
-                var spreadsheet = await service.Spreadsheets.Get(sheet.SheetId).ExecuteAsync();
-                
-                // シート名を特定（gid から）
-                string sheetName = null;
-                foreach (var s in spreadsheet.Sheets)
-                {
-                    // gid を int に変換
-                    if (int.TryParse(sheet.Gid, out int gidInt) && s.Properties.SheetId == gidInt)
-                    {
-                        sheetName = s.Properties.Title;
-                        break;
-                    }
-                }
+                // gid からシート名を取得する（共通化された処理を使用）
+                string sheetName = await GoogleSheetsUtility.GetSheetNameFromGidAsync(service, sheet.SheetId, sheet.Gid);
                 
                 if (string.IsNullOrEmpty(sheetName))
                 {
-                    // gid が見つからない場合は最初のシートを使用
-                    sheetName = spreadsheet.Sheets[0].Properties.Title;
-                    Debug.LogWarning($"指定された gid {sheet.Gid} が見つかりません。最初のシート '{sheetName}' を使用します。");
+                    Debug.LogError($"シート名の取得に失敗しました。スプレッドシートID: {sheet.SheetId}, GID: {sheet.Gid}");
+                    return false;
                 }
                 
                 // データを取得
@@ -359,7 +347,6 @@ namespace SheetSync
         {
             try
             {
-                
                 // Google Sheets API のサービスを作成
                 var service = new SheetsService(new BaseClientService.Initializer()
                 {

@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEditor;
 using SheetSync.Services.Auth;
 using SheetSync.Services.Update;
+using SheetSync.Services;
 using KoheiUtils;
 
 namespace SheetSync.UI.Windows
@@ -208,9 +209,19 @@ namespace SheetSync.UI.Windows
                     { _updateColumn, _updateValue }
                 };
                 
+                // gidからシート名を取得
+                var service = GoogleServiceAccountAuth.GetAuthenticatedService();
+                var sheetName = await GoogleSheetsUtility.GetSheetNameFromSettingAsync(service, _selectedSetting);
+                
+                if (string.IsNullOrEmpty(sheetName))
+                {
+                    _statusMessage = "シート名の取得に失敗しました。ConvertSettingの設定を確認してください。";
+                    return;
+                }
+                
                 var success = await _updateService.UpdateRowAsync(
                     _selectedSetting.sheetID,
-                    "Sheet1", // TODO: gidから実際のシート名を取得
+                    sheetName,
                     _keyColumn,
                     _keyValue,
                     updateData
