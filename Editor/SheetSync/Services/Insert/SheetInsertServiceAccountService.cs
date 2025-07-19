@@ -124,20 +124,13 @@ namespace SheetSync.Services.Insert
         /// </summary>
         private bool ValidateInputs(List<(int rowIndex, Dictionary<string, object> rowData)> insertions, bool verbose)
         {
-            // サービスアカウント認証を確認
-            if (!GoogleServiceAccountAuth.IsAuthenticated)
-            {
-                if (verbose) Debug.LogError("サービスアカウント認証が必要です。");
-                return false;
-            }
-            
             if (insertions == null || insertions.Count == 0)
             {
                 if (verbose) Debug.LogWarning("挿入するデータがありません。");
                 return true;
             }
             
-            // 行番号の検証
+            // 行番号の検証（認証チェックより先に実行）
             foreach (var (rowIndex, rowData) in insertions)
             {
                 if (rowIndex < 0)
@@ -150,6 +143,13 @@ namespace SheetSync.Services.Insert
                 {
                     if (verbose) Debug.LogWarning($"行 {rowIndex} の挿入データが空です。");
                 }
+            }
+            
+            // サービスアカウント認証を確認（入力検証の後）
+            if (!GoogleServiceAccountAuth.IsAuthenticated)
+            {
+                if (verbose) Debug.LogError("サービスアカウント認証が必要です。");
+                return false;
             }
             
             return true;
