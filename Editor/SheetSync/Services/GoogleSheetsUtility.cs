@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Google.Apis.Sheets.v4;
 using UnityEngine;
+using System.Linq;
 
 namespace SheetSync.Services
 {
@@ -75,6 +76,36 @@ namespace SheetSync.Services
             }
             
             return await GetSheetNameFromGidAsync(service, setting.sheetID, setting.gid);
+        }
+        
+        /// <summary>
+        /// シート名からシートIDを取得する
+        /// </summary>
+        /// <param name="service">認証済みのSheetsService</param>
+        /// <param name="spreadsheetId">スプレッドシートID</param>
+        /// <param name="sheetName">シート名</param>
+        /// <returns>シートID。見つからない場合はnull</returns>
+        public static async Task<int?> GetSheetIdFromNameAsync(SheetsService service, string spreadsheetId, string sheetName)
+        {
+            try
+            {
+                var spreadsheet = await service.Spreadsheets.Get(spreadsheetId).ExecuteAsync();
+                var targetSheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == sheetName);
+                
+                if (targetSheet != null)
+                {
+                    return targetSheet.Properties.SheetId;
+                }
+                
+                Debug.LogError($"シート '{sheetName}' がスプレッドシート '{spreadsheetId}' に存在しません。");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"シートIDの取得に失敗しました: {ex.Message}");
+                Debug.LogException(ex);
+                return null;
+            }
         }
     }
 }

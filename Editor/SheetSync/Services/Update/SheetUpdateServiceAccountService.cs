@@ -5,6 +5,8 @@ using UnityEngine;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using SheetSync.Services.Auth;
+using SheetSync.Services;
+using System.Linq;
 
 namespace SheetSync.Services.Update
 {
@@ -33,6 +35,15 @@ namespace SheetSync.Services.Update
                 }
                 
                 var service = GoogleServiceAccountAuth.GetAuthenticatedService();
+                
+                // シート名からシートIDを取得
+                var sheetId = await GoogleSheetsUtility.GetSheetIdFromNameAsync(service, spreadsheetId, sheetName);
+                
+                if (sheetId == null)
+                {
+                    Debug.LogError($"シート '{sheetName}' のID取得に失敗しました。");
+                    return false;
+                }
                 
                 // まず、キー列の値で該当行を検索
                 var searchRange = $"{sheetName}!A:Z";
@@ -112,7 +123,7 @@ namespace SheetSync.Services.Update
                         {
                             Range = new GridRange
                             {
-                                SheetId = 0, // デフォルトシート
+                                SheetId = sheetId.Value,
                                 StartRowIndex = targetRowIndex,
                                 EndRowIndex = targetRowIndex + 1,
                                 StartColumnIndex = columnIndex,

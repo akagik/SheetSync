@@ -213,6 +213,7 @@ namespace SheetSync.UI.Windows
                 var service = GoogleServiceAccountAuth.GetAuthenticatedService();
                 var sheetName = await GoogleSheetsUtility.GetSheetNameFromSettingAsync(service, _selectedSetting);
                 
+                Debug.Log(sheetName);
                 if (string.IsNullOrEmpty(sheetName))
                 {
                     _statusMessage = "シート名の取得に失敗しました。ConvertSettingの設定を確認してください。";
