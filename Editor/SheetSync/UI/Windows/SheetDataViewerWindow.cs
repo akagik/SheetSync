@@ -7,7 +7,7 @@ using System.Linq;
 namespace SheetSync.UI.Windows
 {
     /// <summary>
-    /// スプレッドシートのデータを表示するウィンドウ（シンプル版）
+    /// スプレッドシートのデータを表示するウィンドウ（最適化版）
     /// </summary>
     public class SheetDataViewerWindow : EditorWindow
     {
@@ -21,6 +21,7 @@ namespace SheetSync.UI.Windows
         // 列幅の設定
         private float _defaultColumnWidth = 150f;
         private float _rowHeight = 20f;
+        private float _headerHeight = 25f; // ヘッダーの高さを別管理
         private Dictionary<int, float> _columnWidths = new Dictionary<int, float>();
         
         // 検索機能
@@ -37,6 +38,14 @@ namespace SheetSync.UI.Windows
         private Vector2Int _selectionStart;
         private Vector2Int _selectionEnd;
         private HashSet<(int row, int col)> _selectedCells = new HashSet<(int row, int col)>();
+        
+        // 仮想スクロール用
+        private int _visibleRowStart = 0;
+        private int _visibleRowEnd = 0;
+        private int _drawnCellCount = 0; // デバッグ用
+        
+        // デバッグ設定
+        private bool _showDebugInfo = false;
         
         [MenuItem("Tools/SheetSync/Sheet Data Viewer")]
         public static void ShowWindow()
@@ -70,7 +79,7 @@ namespace SheetSync.UI.Windows
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
                 normal = { background = MakeTexture(2, 2, new Color(0.3f, 0.3f, 0.3f, 1f)) },
-                fixedHeight = _rowHeight
+                fixedHeight = _headerHeight
             };
             
             _cellStyle = new GUIStyle(EditorStyles.label)
@@ -158,6 +167,7 @@ namespace SheetSync.UI.Windows
             
             // 表示設定
             _showRowNumbers = GUILayout.Toggle(_showRowNumbers, "行番号", EditorStyles.toolbarButton);
+            _showDebugInfo = GUILayout.Toggle(_showDebugInfo, "デバッグ", EditorStyles.toolbarButton);
             
             // 情報表示
             GUILayout.Label($"行: {_sheetData.RowCount}, 列: {_sheetData.ColumnCount}", EditorStyles.toolbarButton);
@@ -167,6 +177,12 @@ namespace SheetSync.UI.Windows
                 GUILayout.Label($"ヘッダー行: {_headerRowIndex + 1}", EditorStyles.toolbarButton);
             }
             
+            // デバッグ情報
+            if (_showDebugInfo)
+            {
+                GUILayout.Label($"可視: {_visibleRowStart}-{_visibleRowEnd}, セル数: {_drawnCellCount}", EditorStyles.toolbarButton);
+            }
+            
             EditorGUILayout.EndHorizontal();
         }
         
@@ -174,38 +190,69 @@ namespace SheetSync.UI.Windows
         {
             var viewRect = EditorGUILayout.GetControlRect(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
             
+            // ヘッダー領域とコンテンツ領域を分ける
+            var headerRect = new Rect(viewRect.x, viewRect.y, viewRect.width, _headerHeight);
+            var scrollRect = new Rect(viewRect.x, viewRect.y + _headerHeight, viewRect.width, viewRect.height - _headerHeight);
+            
             // 全体のコンテンツサイズを計算
             float totalWidth = _showRowNumbers ? 50 : 0;
             for (int col = 0; col < _sheetData.ColumnCount; col++)
             {
                 totalWidth += GetColumnWidth(col);
             }
-            float totalHeight = (_sheetData.RowCount + 1) * _rowHeight; // ヘッダー行を含む
+            float totalHeight = _sheetData.RowCount * _rowHeight; // データ行のみの高さ
             
+            // ヘッダーを固定表示（スクロールの外）
+            DrawFixedHeader(headerRect, totalWidth);
+            
+            // データ部分のスクロールビュー
             var contentRect = new Rect(0, 0, totalWidth, totalHeight);
-            _scrollPosition = GUI.BeginScrollView(viewRect, _scrollPosition, contentRect);
+            _scrollPosition = GUI.BeginScrollView(scrollRect, _scrollPosition, contentRect);
+            
+            // 可視範囲を計算
+            CalculateVisibleRows(scrollRect);
             
             // マウスイベント処理
-            HandleMouseEvents(viewRect);
+            HandleMouseEvents(scrollRect);
             
-            // ヘッダー行の描画
-            DrawHeaderRow();
-            
-            // データ行の描画
-            DrawDataRows();
+            // 可視範囲のデータ行のみ描画
+            _drawnCellCount = 0;
+            DrawVisibleDataRows();
             
             GUI.EndScrollView();
+            
+            // デバッグ情報の描画
+            if (_showDebugInfo)
+            {
+                DrawDebugInfo(viewRect);
+            }
         }
         
-        private void DrawHeaderRow()
+        private void CalculateVisibleRows(Rect scrollRect)
         {
+            // スクロール位置から可視範囲を計算
+            _visibleRowStart = Mathf.Max(0, Mathf.FloorToInt(_scrollPosition.y / _rowHeight));
+            _visibleRowEnd = Mathf.Min(_sheetData.RowCount, Mathf.CeilToInt((_scrollPosition.y + scrollRect.height) / _rowHeight));
+            
+            // バッファを追加（スムーズなスクロールのため）
+            _visibleRowStart = Mathf.Max(0, _visibleRowStart - 2);
+            _visibleRowEnd = Mathf.Min(_sheetData.RowCount, _visibleRowEnd + 2);
+        }
+        
+        private void DrawFixedHeader(Rect headerRect, float totalWidth)
+        {
+            // ヘッダー用のスクロールビュー（横スクロールのみ）
+            var headerScrollPos = new Vector2(_scrollPosition.x, 0);
+            var headerContentRect = new Rect(0, 0, totalWidth, _headerHeight);
+            
+            GUI.BeginScrollView(headerRect, headerScrollPos, headerContentRect, false, false);
+            
             float xPos = 0;
-            float yPos = 0;
             
             // 行番号ヘッダー
             if (_showRowNumbers)
             {
-                GUI.Label(new Rect(xPos, yPos, 50, _rowHeight), "", _headerStyle);
+                GUI.Label(new Rect(xPos, 0, 50, _headerHeight), "", _headerStyle);
                 xPos += 50;
             }
             
@@ -213,9 +260,8 @@ namespace SheetSync.UI.Windows
             for (int col = 0; col < _sheetData.ColumnCount; col++)
             {
                 var columnWidth = GetColumnWidth(col);
-                var headerRect = new Rect(xPos, yPos, columnWidth, _rowHeight);
+                var rect = new Rect(xPos, 0, columnWidth, _headerHeight);
                 
-                // ヘッダーテキスト
                 string headerText = "";
                 if (_headerRowIndex >= 0 && _headerRowIndex < _sheetData.EditedValues.Count && 
                     _sheetData.EditedValues[_headerRowIndex] != null && 
@@ -224,18 +270,19 @@ namespace SheetSync.UI.Windows
                     headerText = _sheetData.EditedValues[_headerRowIndex][col]?.ToString() ?? "";
                 }
                 
-                GUI.Label(headerRect, headerText, _headerStyle);
-                
+                GUI.Label(rect, headerText, _headerStyle);
                 xPos += columnWidth;
             }
+            
+            GUI.EndScrollView();
         }
         
-        private void DrawDataRows()
+        private void DrawVisibleDataRows()
         {
-            for (int row = 0; row < _sheetData.EditedValues.Count; row++)
+            for (int row = _visibleRowStart; row < _visibleRowEnd && row < _sheetData.EditedValues.Count; row++)
             {
                 float xPos = 0;
-                float yPos = (row + 1) * _rowHeight; // ヘッダー行の分をオフセット
+                float yPos = row * _rowHeight;
                 
                 // 行番号
                 if (_showRowNumbers)
@@ -267,15 +314,34 @@ namespace SheetSync.UI.Windows
                         }
                         
                         GUI.Label(cellRect, cellValue, style);
-                        
-                        // セルの境界線
                         DrawCellBorder(cellRect);
                         
                         xPos += columnWidth;
+                        _drawnCellCount++;
                     }
                 }
             }
         }
+        
+        private void DrawDebugInfo(Rect viewRect)
+        {
+            var debugStyle = new GUIStyle(EditorStyles.label)
+            {
+                normal = { textColor = Color.yellow },
+                fontSize = 12
+            };
+            
+            var debugRect = new Rect(viewRect.x + 10, viewRect.y + 10, 300, 100);
+            GUI.Label(debugRect, $"Visible Rows: {_visibleRowStart} - {_visibleRowEnd}\nDrawn Cells: {_drawnCellCount}", debugStyle);
+            
+            // 可視範囲の境界線を描画
+            var visibleStartY = _visibleRowStart * _rowHeight - _scrollPosition.y + _headerHeight;
+            var visibleEndY = _visibleRowEnd * _rowHeight - _scrollPosition.y + _headerHeight;
+            
+            EditorGUI.DrawRect(new Rect(viewRect.x, viewRect.y + visibleStartY, viewRect.width, 2), Color.green);
+            EditorGUI.DrawRect(new Rect(viewRect.x, viewRect.y + visibleEndY - 2, viewRect.width, 2), Color.red);
+        }
+        
         
         private void HandleMouseEvents(Rect viewRect)
         {
@@ -339,8 +405,8 @@ namespace SheetSync.UI.Windows
         
         private Vector2Int GetCellFromMousePosition(Vector2 mousePos)
         {
-            // ヘッダー行を考慮
-            int row = Mathf.FloorToInt(mousePos.y / _rowHeight) - 1;
+            // データ領域内でのマウス位置（ヘッダーの高さは既に考慮されている）
+            int row = Mathf.FloorToInt(mousePos.y / _rowHeight);
             if (row < 0 || row >= _sheetData.RowCount)
                 return new Vector2Int(-1, -1);
             
@@ -494,10 +560,10 @@ namespace SheetSync.UI.Windows
                 xPos += GetColumnWidth(i);
             }
             
-            float yPos = (row + 1) * _rowHeight; // ヘッダー行の分をオフセット
+            float yPos = row * _rowHeight; // データ領域内での位置
             
             var viewRect = position;
-            viewRect.height -= 40; // ツールバーの高さ
+            viewRect.height -= 40 + _headerHeight; // ツールバーとヘッダーの高さ
             
             // スクロール位置の調整
             if (xPos < _scrollPosition.x)
