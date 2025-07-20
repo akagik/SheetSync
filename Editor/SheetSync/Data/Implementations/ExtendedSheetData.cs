@@ -447,14 +447,18 @@ namespace SheetSync
         /// </summary>
         private void UpdateKeyIndicesForInsert(int insertedRowIndex)
         {
-            foreach (var keyIndex in _keyIndices.Values)
+            // 既存のインデックスを更新
+            foreach (var kvp in _keyIndices)
             {
+                var keyColumnName = kvp.Key;
+                var keyIndex = kvp.Value;
                 var updatedIndex = new Dictionary<object, List<int>>();
                 
-                foreach (var kvp in keyIndex)
+                // 既存のインデックスを調整
+                foreach (var indexKvp in keyIndex)
                 {
                     var newIndices = new List<int>();
-                    foreach (var index in kvp.Value)
+                    foreach (var index in indexKvp.Value)
                     {
                         if (index >= insertedRowIndex)
                         {
@@ -465,13 +469,32 @@ namespace SheetSync
                             newIndices.Add(index);
                         }
                     }
-                    updatedIndex[kvp.Key] = newIndices;
+                    updatedIndex[indexKvp.Key] = newIndices;
+                }
+                
+                // 新しく挿入された行のキー値を追加
+                var columnIndex = GetColumnIndex(keyColumnName);
+                if (columnIndex >= 0 && insertedRowIndex < _editedValues.Count)
+                {
+                    var insertedRow = _editedValues[insertedRowIndex];
+                    if (insertedRow != null && columnIndex < insertedRow.Count)
+                    {
+                        var keyValue = insertedRow[columnIndex];
+                        if (keyValue != null)
+                        {
+                            if (!updatedIndex.ContainsKey(keyValue))
+                            {
+                                updatedIndex[keyValue] = new List<int>();
+                            }
+                            updatedIndex[keyValue].Add(insertedRowIndex);
+                        }
+                    }
                 }
                 
                 keyIndex.Clear();
-                foreach (var kvp in updatedIndex)
+                foreach (var indexKvp in updatedIndex)
                 {
-                    keyIndex[kvp.Key] = kvp.Value;
+                    keyIndex[indexKvp.Key] = indexKvp.Value;
                 }
             }
         }
