@@ -174,7 +174,10 @@ namespace SheetSync.UI.Windows
             _showDebugInfo = GUILayout.Toggle(_showDebugInfo, "デバッグ", EditorStyles.toolbarButton);
             
             // 情報表示
-            GUILayout.Label($"行: {_sheetData.RowCount}, 列: {_sheetData.ColumnCount}", EditorStyles.toolbarButton);
+            if (_sheetData != null)
+            {
+                GUILayout.Label($"行: {_sheetData.RowCount}, 列: {_sheetData.ColumnCount}", EditorStyles.toolbarButton);
+            }
             
             if (_headerRowIndex > 0)
             {
@@ -204,7 +207,9 @@ namespace SheetSync.UI.Windows
             {
                 totalWidth += GetColumnWidth(col);
             }
-            float totalHeight = _sheetData.RowCount * _rowHeight; // データ行のみの高さ
+            // ヘッダー行を除いたデータ行数
+            int dataRowCount = _sheetData.RowCount - 1;
+            float totalHeight = dataRowCount * _rowHeight; // データ行のみの高さ
             
             // ヘッダーを固定表示（スクロールの外）
             DrawFixedHeader(headerRect, totalWidth);
@@ -216,12 +221,12 @@ namespace SheetSync.UI.Windows
             // 可視範囲を計算
             CalculateVisibleRows(scrollRect);
             
-            // マウスイベント処理
-            HandleMouseEvents(scrollRect);
-            
             // 可視範囲のデータ行のみ描画
             _drawnCellCount = 0;
             DrawVisibleDataRows();
+            
+            // マウスイベント処理（スクロールビュー内で処理）
+            HandleMouseEvents();
             
             GUI.EndScrollView();
             
@@ -235,12 +240,13 @@ namespace SheetSync.UI.Windows
         private void CalculateVisibleRows(Rect scrollRect)
         {
             // スクロール位置から可視範囲を計算
+            int dataRowCount = _sheetData.RowCount - 1; // ヘッダー行を除く
             _visibleRowStart = Mathf.Max(0, Mathf.FloorToInt(_scrollPosition.y / _rowHeight));
-            _visibleRowEnd = Mathf.Min(_sheetData.RowCount, Mathf.CeilToInt((_scrollPosition.y + scrollRect.height) / _rowHeight));
+            _visibleRowEnd = Mathf.Min(dataRowCount, Mathf.CeilToInt((_scrollPosition.y + scrollRect.height) / _rowHeight));
             
             // バッファを追加（スムーズなスクロールのため）
             _visibleRowStart = Mathf.Max(0, _visibleRowStart - 2);
-            _visibleRowEnd = Mathf.Min(_sheetData.RowCount, _visibleRowEnd + 2);
+            _visibleRowEnd = Mathf.Min(dataRowCount, _visibleRowEnd + 2);
         }
         
         private void DrawFixedHeader(Rect headerRect, float totalWidth)
@@ -286,20 +292,27 @@ namespace SheetSync.UI.Windows
         {
             _drawnCellCount = 0;
             
-            for (int row = _visibleRowStart; row < _visibleRowEnd && row < _sheetData.EditedValues.Count; row++)
+            // ヘッダー行をスキップして、データ行のみを描画
+            int dataStartRow = _headerRowIndex + 1;
+            
+            for (int i = _visibleRowStart; i < _visibleRowEnd; i++)
             {
-                float xPos = 0;
-                float yPos = row * _rowHeight;
+                int dataRow = i + dataStartRow;
+                if (dataRow >= _sheetData.EditedValues.Count) break;
                 
-                // 行番号
+                float xPos = 0;
+                float yPos = i * _rowHeight;
+                
+                // 行番号（実際のスプレッドシート行番号を表示）
                 if (_showRowNumbers)
                 {
-                    GUI.Label(new Rect(xPos, yPos, 50, _rowHeight), (row + 1).ToString(), _headerStyle);
+                    int actualRowNumber = i + _headerRowIndex + 2; // +1 for header, +1 for 1-based
+                    GUI.Label(new Rect(xPos, yPos, 50, _rowHeight), actualRowNumber.ToString(), _headerStyle);
                     xPos += 50;
                 }
                 
                 // セルデータ
-                var rowData = _sheetData.EditedValues[row];
+                var rowData = _sheetData.EditedValues[dataRow];
                 if (rowData != null)
                 {
                     for (int col = 0; col < _sheetData.ColumnCount && col < rowData.Count; col++)
@@ -311,17 +324,17 @@ namespace SheetSync.UI.Windows
                         
                         // スタイルの選択
                         var style = _cellStyle;
-                        if (_selectedCells.Contains((row, col)))
+                        if (_selectedCells.Contains((i, col)))
                         {
                             style = _selectedCellStyle;
                         }
-                        else if (IsSearchMatch(row, col))
+                        else if (IsSearchMatch(dataRow, col))
                         {
                             style = _highlightStyle;
                         }
                         
                         // 現在のセルには枠を描画
-                        if (_currentCell.x == col && _currentCell.y == row)
+                        if (_currentCell.x == col && _currentCell.y == i)
                         {
                             EditorGUI.DrawRect(new Rect(cellRect.x, cellRect.y, cellRect.width, 2), Color.blue);
                             EditorGUI.DrawRect(new Rect(cellRect.x, cellRect.yMax - 2, cellRect.width, 2), Color.blue);
@@ -359,22 +372,32 @@ namespace SheetSync.UI.Windows
         }
         
         
-        private void HandleMouseEvents(Rect viewRect)
+        private void HandleMouseEvents()
         {
             var e = Event.current;
             if (e.type == EventType.MouseDown && e.button == 0)
             {
-                var mousePos = e.mousePosition + _scrollPosition;
+                // スクロールビュー内でのマウス位置
+                // GUI.BeginScrollView内ではEvent.current.mousePositionは
+                // コンテンツ座標系（スクロール位置を含む）での座標になる
+                var mousePos = e.mousePosition;
+                
+                if (_showDebugInfo)
+                {
+                    Debug.Log($"Mouse: {mousePos}, Scroll: {_scrollPosition}");  
+                }
                 
                 // 行番号エリアをクリックした場合
                 if (_showRowNumbers && mousePos.x < 50)
                 {
                     int row = Mathf.FloorToInt(mousePos.y / _rowHeight);
-                    if (row >= 0 && row < _sheetData.RowCount)
+                    int dataRowCount = _sheetData.RowCount - 1;
+                    if (row >= 0 && row < dataRowCount)
                     {
                         SelectEntireRow(row, e.shift);
                         _isRowSelectionMode = true;
                         _isSelecting = true;
+                        e.Use();
                         Repaint();
                     }
                 }
@@ -400,6 +423,7 @@ namespace SheetSync.UI.Windows
                             _selectedCells.Add((cellPos.y, cellPos.x));
                         }
                         _isSelecting = true;
+                        e.Use();
                         Repaint();
                     }
                 }
@@ -409,21 +433,24 @@ namespace SheetSync.UI.Windows
                 if (_isRowSelectionMode)
                 {
                     // 行選択モードでのドラッグ
-                    var mousePos = e.mousePosition + _scrollPosition;
+                    var mousePos = e.mousePosition;
                     int row = Mathf.FloorToInt(mousePos.y / _rowHeight);
-                    if (row >= 0 && row < _sheetData.RowCount)
+                    int dataRowCount = _sheetData.RowCount - 1;
+                    if (row >= 0 && row < dataRowCount)
                     {
                         SelectRowRange(_selectionStart.y, row);
+                        e.Use();
                         Repaint();
                     }
                 }
                 else
                 {
                     // セル選択モードでのドラッグ
-                    var cellPos = GetCellFromMousePosition(e.mousePosition + _scrollPosition);
+                    var cellPos = GetCellFromMousePosition(e.mousePosition);
                     if (cellPos.x >= 0 && cellPos.y >= 0)
                     {
                         SelectRange(_selectionStart, cellPos);
+                        e.Use();
                         Repaint();
                     }
                 }
@@ -477,8 +504,9 @@ namespace SheetSync.UI.Windows
         
         private void MoveCursor(int deltaX, int deltaY, bool extendSelection)
         {
+            int dataRowCount = _sheetData.RowCount - 1;
             var newX = Mathf.Clamp(_currentCell.x + deltaX, 0, _sheetData.ColumnCount - 1);
-            var newY = Mathf.Clamp(_currentCell.y + deltaY, 0, _sheetData.RowCount - 1);
+            var newY = Mathf.Clamp(_currentCell.y + deltaY, 0, dataRowCount - 1);
             var newCell = new Vector2Int(newX, newY);
             
             if (extendSelection)
@@ -538,9 +566,11 @@ namespace SheetSync.UI.Windows
         
         private Vector2Int GetCellFromMousePosition(Vector2 mousePos)
         {
-            // データ領域内でのマウス位置（ヘッダーの高さは既に考慮されている）
+            // データ領域内でのマウス位置
+            // mousePos はスクロールビュー内でのコンテンツ座標系での位置
             int row = Mathf.FloorToInt(mousePos.y / _rowHeight);
-            if (row < 0 || row >= _sheetData.RowCount)
+            int dataRowCount = _sheetData.RowCount - 1;
+            if (row < 0 || row >= dataRowCount)
                 return new Vector2Int(-1, -1);
             
             // 列の検索
@@ -581,7 +611,8 @@ namespace SheetSync.UI.Windows
         private void SelectAll()
         {
             _selectedCells.Clear();
-            for (int row = 0; row < _sheetData.RowCount; row++)
+            int dataRowCount = _sheetData.RowCount - 1;
+            for (int row = 0; row < dataRowCount; row++)
             {
                 for (int col = 0; col < _sheetData.ColumnCount; col++)
                 {
@@ -612,9 +643,13 @@ namespace SheetSync.UI.Windows
                 {
                     if (_selectedCells.Contains((row, col)))
                     {
-                        if (_sheetData.EditedValues[row] != null && col < _sheetData.EditedValues[row].Count)
+                        // データ行インデックスを実際のEditedValuesインデックスに変換
+                        int actualRow = row + _headerRowIndex + 1;
+                        if (actualRow < _sheetData.EditedValues.Count && 
+                            _sheetData.EditedValues[actualRow] != null && 
+                            col < _sheetData.EditedValues[actualRow].Count)
                         {
-                            sb.Append(_sheetData.EditedValues[row][col]?.ToString() ?? "");
+                            sb.Append(_sheetData.EditedValues[actualRow][col]?.ToString() ?? "");
                         }
                     }
                     
@@ -653,7 +688,8 @@ namespace SheetSync.UI.Windows
             
             var searchLower = _searchText.ToLower();
             
-            for (int row = 0; row < _sheetData.EditedValues.Count; row++)
+            // ヘッダー行の次から検索開始
+            for (int row = _headerRowIndex + 1; row < _sheetData.EditedValues.Count; row++)
             {
                 var rowData = _sheetData.EditedValues[row];
                 if (rowData == null) continue;
@@ -663,7 +699,9 @@ namespace SheetSync.UI.Windows
                     var cellValue = rowData[col]?.ToString() ?? "";
                     if (cellValue.ToLower().Contains(searchLower))
                     {
-                        _searchResults.Add((row, col));
+                        // データ行インデックスとして保存（0ベース）
+                        int dataRowIndex = row - _headerRowIndex - 1;
+                        _searchResults.Add((dataRowIndex, col));
                     }
                 }
             }
@@ -720,9 +758,11 @@ namespace SheetSync.UI.Windows
             Repaint();
         }
         
-        private bool IsSearchMatch(int row, int col)
+        private bool IsSearchMatch(int dataRow, int col)
         {
             if (_searchResults.Count == 0) return false;
+            // dataRow は EditedValues のインデックスなので、データ行インデックスに変換
+            int row = dataRow - _headerRowIndex - 1;
             return _searchResults.Contains((row, col));
         }
         
