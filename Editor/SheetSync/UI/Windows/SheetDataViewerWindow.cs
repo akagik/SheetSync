@@ -38,6 +38,8 @@ namespace SheetSync.UI.Windows
         private Vector2Int _selectionStart;
         private Vector2Int _selectionEnd;
         private HashSet<(int row, int col)> _selectedCells = new HashSet<(int row, int col)>();
+        private Vector2Int _currentCell = new Vector2Int(0, 0); // 現在のセル位置
+        private bool _isRowSelectionMode = false; // 行選択モード
         
         // 仮想スクロール用
         private int _visibleRowStart = 0;
@@ -70,6 +72,8 @@ namespace SheetSync.UI.Windows
         private void OnEnable()
         {
             InitializeStyles();
+            // キーボードイベントを受け取れるようにフォーカスを設定
+            wantsMouseMove = true;
         }
         
         private void InitializeStyles()
@@ -241,11 +245,12 @@ namespace SheetSync.UI.Windows
         
         private void DrawFixedHeader(Rect headerRect, float totalWidth)
         {
-            // ヘッダー用のスクロールビュー（横スクロールのみ）
+            // ヘッダー用のスクロールビュー（横スクロールのみ、スクロールバー非表示）
             var headerScrollPos = new Vector2(_scrollPosition.x, 0);
             var headerContentRect = new Rect(0, 0, totalWidth, _headerHeight);
             
-            GUI.BeginScrollView(headerRect, headerScrollPos, headerContentRect, false, false);
+            // スクロールバーを非表示にする（GUIStyle.noneを使用）
+            GUI.BeginScrollView(headerRect, headerScrollPos, headerContentRect, GUIStyle.none, GUIStyle.none);
             
             float xPos = 0;
             
@@ -279,6 +284,8 @@ namespace SheetSync.UI.Windows
         
         private void DrawVisibleDataRows()
         {
+            _drawnCellCount = 0;
+            
             for (int row = _visibleRowStart; row < _visibleRowEnd && row < _sheetData.EditedValues.Count; row++)
             {
                 float xPos = 0;
@@ -311,6 +318,15 @@ namespace SheetSync.UI.Windows
                         else if (IsSearchMatch(row, col))
                         {
                             style = _highlightStyle;
+                        }
+                        
+                        // 現在のセルには枠を描画
+                        if (_currentCell.x == col && _currentCell.y == row)
+                        {
+                            EditorGUI.DrawRect(new Rect(cellRect.x, cellRect.y, cellRect.width, 2), Color.blue);
+                            EditorGUI.DrawRect(new Rect(cellRect.x, cellRect.yMax - 2, cellRect.width, 2), Color.blue);
+                            EditorGUI.DrawRect(new Rect(cellRect.x, cellRect.y, 2, cellRect.height), Color.blue);
+                            EditorGUI.DrawRect(new Rect(cellRect.xMax - 2, cellRect.y, 2, cellRect.height), Color.blue);
                         }
                         
                         GUI.Label(cellRect, cellValue, style);
@@ -348,33 +364,68 @@ namespace SheetSync.UI.Windows
             var e = Event.current;
             if (e.type == EventType.MouseDown && e.button == 0)
             {
-                var cellPos = GetCellFromMousePosition(e.mousePosition + _scrollPosition);
-                if (cellPos.x >= 0 && cellPos.y >= 0)
+                var mousePos = e.mousePosition + _scrollPosition;
+                
+                // 行番号エリアをクリックした場合
+                if (_showRowNumbers && mousePos.x < 50)
                 {
-                    if (e.shift && _selectedCells.Count > 0)
+                    int row = Mathf.FloorToInt(mousePos.y / _rowHeight);
+                    if (row >= 0 && row < _sheetData.RowCount)
                     {
-                        // Shift+クリックで範囲選択
-                        SelectRange(_selectionStart, cellPos);
+                        SelectEntireRow(row, e.shift);
+                        _isRowSelectionMode = true;
+                        _isSelecting = true;
+                        Repaint();
                     }
-                    else
+                }
+                else
+                {
+                    // セルをクリックした場合
+                    var cellPos = GetCellFromMousePosition(mousePos);
+                    if (cellPos.x >= 0 && cellPos.y >= 0)
                     {
-                        // 通常クリックで単一選択
-                        _selectedCells.Clear();
-                        _selectionStart = cellPos;
-                        _selectionEnd = cellPos;
-                        _selectedCells.Add((cellPos.y, cellPos.x));
+                        _isRowSelectionMode = false;
+                        if (e.shift && _selectedCells.Count > 0)
+                        {
+                            // Shift+クリックで範囲選択
+                            SelectRange(_selectionStart, cellPos);
+                        }
+                        else
+                        {
+                            // 通常クリックで単一選択
+                            _selectedCells.Clear();
+                            _selectionStart = cellPos;
+                            _selectionEnd = cellPos;
+                            _currentCell = cellPos;
+                            _selectedCells.Add((cellPos.y, cellPos.x));
+                        }
+                        _isSelecting = true;
+                        Repaint();
                     }
-                    _isSelecting = true;
-                    Repaint();
                 }
             }
             else if (e.type == EventType.MouseDrag && _isSelecting)
             {
-                var cellPos = GetCellFromMousePosition(e.mousePosition + _scrollPosition);
-                if (cellPos.x >= 0 && cellPos.y >= 0)
+                if (_isRowSelectionMode)
                 {
-                    SelectRange(_selectionStart, cellPos);
-                    Repaint();
+                    // 行選択モードでのドラッグ
+                    var mousePos = e.mousePosition + _scrollPosition;
+                    int row = Mathf.FloorToInt(mousePos.y / _rowHeight);
+                    if (row >= 0 && row < _sheetData.RowCount)
+                    {
+                        SelectRowRange(_selectionStart.y, row);
+                        Repaint();
+                    }
+                }
+                else
+                {
+                    // セル選択モードでのドラッグ
+                    var cellPos = GetCellFromMousePosition(e.mousePosition + _scrollPosition);
+                    if (cellPos.x >= 0 && cellPos.y >= 0)
+                    {
+                        SelectRange(_selectionStart, cellPos);
+                        Repaint();
+                    }
                 }
             }
             else if (e.type == EventType.MouseUp)
@@ -400,7 +451,89 @@ namespace SheetSync.UI.Windows
                     SelectAll();
                     e.Use();
                 }
+                // カーソルキーでの移動
+                else if (e.keyCode == KeyCode.UpArrow)
+                {
+                    MoveCursor(0, -1, e.shift);
+                    e.Use();
+                }
+                else if (e.keyCode == KeyCode.DownArrow)
+                {
+                    MoveCursor(0, 1, e.shift);
+                    e.Use();
+                }
+                else if (e.keyCode == KeyCode.LeftArrow)
+                {
+                    MoveCursor(-1, 0, e.shift);
+                    e.Use();
+                }
+                else if (e.keyCode == KeyCode.RightArrow)
+                {
+                    MoveCursor(1, 0, e.shift);
+                    e.Use();
+                }
             }
+        }
+        
+        private void MoveCursor(int deltaX, int deltaY, bool extendSelection)
+        {
+            var newX = Mathf.Clamp(_currentCell.x + deltaX, 0, _sheetData.ColumnCount - 1);
+            var newY = Mathf.Clamp(_currentCell.y + deltaY, 0, _sheetData.RowCount - 1);
+            var newCell = new Vector2Int(newX, newY);
+            
+            if (extendSelection)
+            {
+                // Shift押下時は選択範囲を拡張
+                SelectRange(_selectionStart, newCell);
+            }
+            else
+            {
+                // 通常移動
+                _selectedCells.Clear();
+                _selectedCells.Add((newY, newX));
+                _selectionStart = newCell;
+                _selectionEnd = newCell;
+            }
+            
+            _currentCell = newCell;
+            ScrollToCell(newY, newX);
+            Repaint();
+        }
+        
+        private void SelectEntireRow(int row, bool extend)
+        {
+            if (!extend)
+            {
+                _selectedCells.Clear();
+                _selectionStart = new Vector2Int(0, row);
+            }
+            
+            // 行全体を選択
+            for (int col = 0; col < _sheetData.ColumnCount; col++)
+            {
+                _selectedCells.Add((row, col));
+            }
+            
+            _selectionEnd = new Vector2Int(_sheetData.ColumnCount - 1, row);
+            _currentCell = new Vector2Int(0, row);
+        }
+        
+        private void SelectRowRange(int startRow, int endRow)
+        {
+            _selectedCells.Clear();
+            
+            int minRow = Mathf.Min(startRow, endRow);
+            int maxRow = Mathf.Max(startRow, endRow);
+            
+            for (int row = minRow; row <= maxRow; row++)
+            {
+                for (int col = 0; col < _sheetData.ColumnCount; col++)
+                {
+                    _selectedCells.Add((row, col));
+                }
+            }
+            
+            _selectionEnd = new Vector2Int(_sheetData.ColumnCount - 1, endRow);
         }
         
         private Vector2Int GetCellFromMousePosition(Vector2 mousePos)
