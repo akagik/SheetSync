@@ -186,6 +186,11 @@ namespace SheetSync.UI.Windows
                 
                 EditorGUILayout.BeginHorizontal();
                 
+                if (GUILayout.Button("Open", GUILayout.Width(50), GUILayout.Height(25)))
+                {
+                    OpenSpreadsheet();
+                }
+                
                 EditorGUI.BeginDisabledGroup(_isProcessing);
                 if (GUILayout.Button("スプレッドシートを読み込む", GUILayout.Height(25)))
                 {
@@ -542,6 +547,24 @@ namespace SheetSync.UI.Windows
         #endregion
         
         #region ヘルパーメソッド
+        
+        private void OpenSpreadsheet()
+        {
+            if (_selectedSetting == null)
+                return;
+            
+            // Google スプレッドシートのURLを構築
+            var url = $"https://docs.google.com/spreadsheets/d/{_selectedSetting.sheetID}/edit";
+            
+            // gid がある場合は追加
+            if (!string.IsNullOrEmpty(_selectedSetting.gid))
+            {
+                url += $"#gid={_selectedSetting.gid}";
+            }
+            
+            Application.OpenURL(url);
+            Debug.Log($"スプレッドシートを開きました: {url}");
+        }
         
         private void ShowSpreadsheetData()
         {
