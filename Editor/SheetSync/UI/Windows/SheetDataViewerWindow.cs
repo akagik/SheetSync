@@ -129,6 +129,7 @@ namespace SheetSync.UI.Windows
         
         private void DrawToolbar()
         {
+            // エラーを修正: 未使用のコードを削除
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             
             // 検索機能
@@ -265,12 +266,13 @@ namespace SheetSync.UI.Windows
         
         private void DrawHeaders(Rect viewRect)
         {
-            float xPos = _showRowNumbers ? 50 - _scrollPosition.x : -_scrollPosition.x;
+            // ヘッダー行を固定位置に描画
+            float yPos = _scrollPosition.y;
             
             // 行番号ヘッダー
             if (_showRowNumbers)
             {
-                var headerRect = new Rect(0, 0, 50, _rowHeight);
+                var headerRect = new Rect(0, yPos, 50, _rowHeight);
                 GUI.Label(headerRect, "", _headerStyle);
             }
             
@@ -283,12 +285,14 @@ namespace SheetSync.UI.Windows
                 if (xPosition + columnWidth < 0) continue;
                 if (xPosition > viewRect.width) break;
                 
-                var headerRect = new Rect(xPosition, 0, columnWidth, _rowHeight);
+                var headerRect = new Rect(xPosition, yPos, columnWidth, _rowHeight);
                 
                 string headerText = "";
-                if (_sheetData.EditedValues.Count > 0 && _sheetData.EditedValues[0] != null && col < _sheetData.EditedValues[0].Count)
+                if (_headerRowIndex >= 0 && _headerRowIndex < _sheetData.EditedValues.Count && 
+                    _sheetData.EditedValues[_headerRowIndex] != null && 
+                    col < _sheetData.EditedValues[_headerRowIndex].Count)
                 {
-                    headerText = _sheetData.EditedValues[0][col]?.ToString() ?? "";
+                    headerText = _sheetData.EditedValues[_headerRowIndex][col]?.ToString() ?? "";
                 }
                 
                 GUI.Label(headerRect, headerText, _headerStyle);
@@ -297,10 +301,13 @@ namespace SheetSync.UI.Windows
         
         private void DrawVisibleCells(Rect viewRect)
         {
+            // ヘッダー行の高さを考慮
+            float headerHeight = _rowHeight;
+            
             // 可視範囲のセルのみ描画
             for (int row = _visibleRowStart; row < _visibleRowEnd && row < _sheetData.EditedValues.Count; row++)
             {
-                float yPos = row * _rowHeight - _scrollPosition.y;
+                float yPos = row * _rowHeight - _scrollPosition.y + headerHeight;
                 
                 // 行番号
                 if (_showRowNumbers)
@@ -408,15 +415,15 @@ namespace SheetSync.UI.Windows
         
         private Vector2Int GetCellFromMousePosition(Vector2 mousePos)
         {
-            int row = Mathf.FloorToInt((mousePos.y + _scrollPosition.y) / _rowHeight);
+            // ヘッダー行の高さを考慮して行を計算
+            int row = Mathf.FloorToInt((mousePos.y + _scrollPosition.y - _rowHeight) / _rowHeight);
             
             int col = -1;
-            float xPos = mousePos.x + _scrollPosition.x - (_showRowNumbers ? 50 : 0);
+            float xPos = mousePos.x + _scrollPosition.x;
             
             for (int i = 0; i < _sheetData.ColumnCount; i++)
             {
-                if (xPos >= _columnStartPositions[i] - (_showRowNumbers ? 50 : 0) && 
-                    xPos < _columnStartPositions[i + 1] - (_showRowNumbers ? 50 : 0))
+                if (xPos >= _columnStartPositions[i] && xPos < _columnStartPositions[i + 1])
                 {
                     col = i;
                     break;
@@ -559,7 +566,7 @@ namespace SheetSync.UI.Windows
         
         private void ScrollToCell(int row, int col)
         {
-            float xPos = _columnStartPositions[col] - (_showRowNumbers ? 50 : 0);
+            float xPos = _columnStartPositions[col];
             float yPos = row * _rowHeight;
             
             var viewRect = position;
