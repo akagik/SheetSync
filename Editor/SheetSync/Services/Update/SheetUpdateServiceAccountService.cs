@@ -162,18 +162,27 @@ namespace SheetSync.Services.Update
                 return null;
             }
             
-            // ヘッダー行を検出
-            var headerRowIndex = HeaderDetector.DetectHeaderRowIndex(response.Values, keyColumn);
-            if (headerRowIndex == -1)
+            // まず GlobalCCSettings から取得を試みる
+            var headerRowIndex = HeaderDetector.GetHeaderRowIndexFromSettings();
+            
+            // 設定値が範囲外の場合は自動検出
+            if (headerRowIndex >= response.Values.Count || headerRowIndex < 0)
             {
-                // キー列名で見つからない場合は、一般的な列名で再試行
-                var commonColumns = new[] { "key", "id", "name", "ja", "en", "ko" };
-                headerRowIndex = HeaderDetector.DetectHeaderRowByMultipleColumns(response.Values, commonColumns, 2);
+                if (verbose) Debug.LogWarning($"GlobalCCSettings の rowIndexOfName ({headerRowIndex}) が範囲外です。自動検出を行います。");
                 
+                // ヘッダー行を検出
+                headerRowIndex = HeaderDetector.DetectHeaderRowIndex(response.Values, keyColumn);
                 if (headerRowIndex == -1)
                 {
-                    // それでも見つからない場合は推測
-                    headerRowIndex = HeaderDetector.GuessHeaderRow(response.Values);
+                    // キー列名で見つからない場合は、一般的な列名で再試行
+                    var commonColumns = new[] { "key", "id", "name", "ja", "en", "ko" };
+                    headerRowIndex = HeaderDetector.DetectHeaderRowByMultipleColumns(response.Values, commonColumns, 2);
+                    
+                    if (headerRowIndex == -1)
+                    {
+                        // それでも見つからない場合は推測
+                        headerRowIndex = HeaderDetector.GuessHeaderRow(response.Values);
+                    }
                 }
             }
             

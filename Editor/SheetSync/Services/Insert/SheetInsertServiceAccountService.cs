@@ -187,14 +187,23 @@ namespace SheetSync.Services.Insert
                 return null;
             }
             
-            // ヘッダー行を検出
-            var commonColumns = new[] { "key", "id", "name", "ja", "en", "ko" };
-            var headerRowIndex = HeaderDetector.DetectHeaderRowByMultipleColumns(response.Values, commonColumns, 2);
+            // まず GlobalCCSettings から取得を試みる
+            var headerRowIndex = HeaderDetector.GetHeaderRowIndexFromSettings();
             
-            if (headerRowIndex == -1)
+            // 設定値が範囲外の場合は自動検出
+            if (headerRowIndex >= response.Values.Count || headerRowIndex < 0)
             {
-                // それでも見つからない場合は推測
-                headerRowIndex = HeaderDetector.GuessHeaderRow(response.Values);
+                if (verbose) Debug.LogWarning($"GlobalCCSettings の rowIndexOfName ({headerRowIndex}) が範囲外です。自動検出を行います。");
+                
+                // ヘッダー行を検出
+                var commonColumns = new[] { "key", "id", "name", "ja", "en", "ko" };
+                headerRowIndex = HeaderDetector.DetectHeaderRowByMultipleColumns(response.Values, commonColumns, 2);
+                
+                if (headerRowIndex == -1)
+                {
+                    // それでも見つからない場合は推測
+                    headerRowIndex = HeaderDetector.GuessHeaderRow(response.Values);
+                }
             }
             
             if (headerRowIndex >= response.Values.Count)

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEditor;
 
 namespace SheetSync.Services.Common
 {
@@ -9,6 +10,28 @@ namespace SheetSync.Services.Common
     /// </summary>
     public static class HeaderDetector
     {
+        /// <summary>
+        /// GlobalCCSettings を使用してヘッダー行のインデックスを取得
+        /// </summary>
+        /// <returns>ヘッダー行のインデックス（見つからない場合は0）</returns>
+        public static int GetHeaderRowIndexFromSettings()
+        {
+            // GlobalCCSettings を検索
+            var guids = AssetDatabase.FindAssets("t:GlobalCCSettings");
+            if (guids.Length > 0)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guids[0]);
+                var settings = AssetDatabase.LoadAssetAtPath<GlobalCCSettings>(path);
+                if (settings != null)
+                {
+                    Debug.Log($"GlobalCCSettings の rowIndexOfName を使用: {settings.rowIndexOfName}");
+                    return settings.rowIndexOfName;
+                }
+            }
+            
+            Debug.LogWarning("GlobalCCSettings が見つかりません。デフォルト値 0 を使用します。");
+            return 0;
+        }
         /// <summary>
         /// 指定されたキー列名を含むヘッダー行のインデックスを検出
         /// </summary>

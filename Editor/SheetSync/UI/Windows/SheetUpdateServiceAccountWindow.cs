@@ -184,12 +184,23 @@ namespace SheetSync.UI.Windows
             {
                 EditorGUILayout.Space(5);
                 
+                EditorGUILayout.BeginHorizontal();
+                
                 EditorGUI.BeginDisabledGroup(_isProcessing);
                 if (GUILayout.Button("スプレッドシートを読み込む", GUILayout.Height(25)))
                 {
                     LoadSpreadsheetData();
                 }
                 EditorGUI.EndDisabledGroup();
+                
+                EditorGUI.BeginDisabledGroup(_isProcessing || _currentSheetData == null);
+                if (GUILayout.Button("データを表示", GUILayout.Width(100), GUILayout.Height(25)))
+                {
+                    ShowSpreadsheetData();
+                }
+                EditorGUI.EndDisabledGroup();
+                
+                EditorGUILayout.EndHorizontal();
             }
             
             EditorGUILayout.EndVertical();
@@ -531,6 +542,17 @@ namespace SheetSync.UI.Windows
         #endregion
         
         #region ヘルパーメソッド
+        
+        private void ShowSpreadsheetData()
+        {
+            if (_currentSheetData == null)
+                return;
+            
+            // GlobalCCSettings から取得したヘッダー行インデックスを渡す
+            var headerRowIndex = HeaderDetector.GetHeaderRowIndexFromSettings();
+            var title = $"Sheet Data - {_selectedSetting.name}";
+            SheetDataViewerWindow.ShowData(_currentSheetData, title, headerRowIndex);
+        }
         
         private bool HasValidInput()
         {
