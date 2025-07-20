@@ -6,6 +6,7 @@ using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using SheetSync.Services.Auth;
 using SheetSync.Services;
+using SheetSync.Services.Common;
 using System.Linq;
 
 namespace SheetSync.Services.Update
@@ -28,6 +29,7 @@ namespace SheetSync.Services.Update
             public IList<object> Headers { get; set; }
             public Dictionary<string, int> ColumnIndexMap { get; set; }
             public int KeyColumnIndex { get; set; }
+            public int HeaderRowIndex { get; set; }  // ヘッダー行のインデックス
         }
         
         #endregion
@@ -160,14 +162,35 @@ namespace SheetSync.Services.Update
                 return null;
             }
             
+            // ヘッダー行を検出
+            var headerRowIndex = HeaderDetector.DetectHeaderRowIndex(response.Values, keyColumn);
+            if (headerRowIndex == -1)
+            {
+                // キー列名で見つからない場合は、一般的な列名で再試行
+                var commonColumns = new[] { "key", "id", "name", "ja", "en", "ko" };
+                headerRowIndex = HeaderDetector.DetectHeaderRowByMultipleColumns(response.Values, commonColumns, 2);
+                
+                if (headerRowIndex == -1)
+                {
+                    // それでも見つからない場合は推測
+                    headerRowIndex = HeaderDetector.GuessHeaderRow(response.Values);
+                }
+            }
+            
+            if (headerRowIndex >= response.Values.Count)
+            {
+                if (verbose) Debug.LogError("有効なヘッダー行が見つかりません。");
+                return null;
+            }
+            
             // ヘッダー行を取得
-            var headers = response.Values[0];
+            var headers = response.Values[headerRowIndex];
             
             // キー列のインデックスを見つける
             var keyColumnIndex = FindColumnIndex(headers, keyColumn);
             if (keyColumnIndex == -1)
             {
-                if (verbose) Debug.LogError($"キー列 '{keyColumn}' が見つかりません。");
+                if (verbose) Debug.LogError($"キー列 '{keyColumn}' がヘッダー行に見つかりません。");
                 return null;
             }
             
@@ -178,7 +201,8 @@ namespace SheetSync.Services.Update
                 Values = response.Values,
                 Headers = headers,
                 KeyColumnIndex = keyColumnIndex,
-                ColumnIndexMap = new Dictionary<string, int>()
+                ColumnIndexMap = new Dictionary<string, int>(),
+                HeaderRowIndex = headerRowIndex
             };
         }
         
@@ -303,11 +327,12 @@ namespace SheetSync.Services.Update
         /// </summary>
         private int FindTargetRow(SheetMetadata metadata, string keyValue)
         {
-            for (int i = 1; i < metadata.Values.Count; i++)
+            // ヘッダー行の次の行から検索を開始
+            for (int i = metadata.HeaderRowIndex + 1; i < metadata.Values.Count; i++)
             {
                 var row = metadata.Values[i];
                 if (row.Count > metadata.KeyColumnIndex && 
-                    row[metadata.KeyColumnIndex].ToString() == keyValue)
+                    row[metadata.KeyColumnIndex]?.ToString() == keyValue)
                 {
                     return i;
                 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using Google.Apis.Sheets.v4;
@@ -144,9 +145,25 @@ namespace SheetSync.Services.Common
                 // ExtendedSheetDataを作成
                 var sheetData = new ExtendedSheetData(response.Values);
                 
+                // ヘッダー行を検出してビューを作成
+                var commonColumns = new[] { "key", "id", "name", "ja", "en", "ko" };
+                var headerRowIndex = HeaderDetector.DetectHeaderRowByMultipleColumns(response.Values, commonColumns, 2);
+                
+                if (headerRowIndex == -1)
+                {
+                    headerRowIndex = HeaderDetector.GuessHeaderRow(response.Values);
+                }
+                
+                if (headerRowIndex > 0)
+                {
+                    // ヘッダー行が最初の行でない場合は、ヘッダー行から始まるビューを作成
+                    var dataFromHeader = response.Values.Skip(headerRowIndex).ToList();
+                    sheetData = new ExtendedSheetData(dataFromHeader);
+                }
+                
                 if (verbose)
                 {
-                    Debug.Log($"SheetDataを読み込みました: {response.Values.Count}行 x {sheetData.ColumnCount}列");
+                    Debug.Log($"SheetDataを読み込みました: {sheetData.RowCount}行 x {sheetData.ColumnCount}列 (ヘッダー行: {headerRowIndex + 1})");
                 }
                 
                 return sheetData;

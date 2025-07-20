@@ -6,6 +6,7 @@ using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using SheetSync.Services.Auth;
 using SheetSync.Services;
+using SheetSync.Services.Common;
 using System.Linq;
 
 namespace SheetSync.Services.Insert
@@ -27,6 +28,7 @@ namespace SheetSync.Services.Insert
             public IList<IList<object>> Values { get; set; }
             public IList<object> Headers { get; set; }
             public Dictionary<string, int> ColumnIndexMap { get; set; }
+            public int HeaderRowIndex { get; set; }  // ヘッダー行のインデックス
         }
         
         /// <summary>
@@ -185,8 +187,24 @@ namespace SheetSync.Services.Insert
                 return null;
             }
             
+            // ヘッダー行を検出
+            var commonColumns = new[] { "key", "id", "name", "ja", "en", "ko" };
+            var headerRowIndex = HeaderDetector.DetectHeaderRowByMultipleColumns(response.Values, commonColumns, 2);
+            
+            if (headerRowIndex == -1)
+            {
+                // それでも見つからない場合は推測
+                headerRowIndex = HeaderDetector.GuessHeaderRow(response.Values);
+            }
+            
+            if (headerRowIndex >= response.Values.Count)
+            {
+                if (verbose) Debug.LogError("有効なヘッダー行が見つかりません。");
+                return null;
+            }
+            
             // ヘッダー行を取得
-            var headers = response.Values[0];
+            var headers = response.Values[headerRowIndex];
             
             return new SheetMetadata
             {
@@ -194,7 +212,8 @@ namespace SheetSync.Services.Insert
                 SheetId = sheetId,
                 Values = response.Values,
                 Headers = headers,
-                ColumnIndexMap = new Dictionary<string, int>()
+                ColumnIndexMap = new Dictionary<string, int>(),
+                HeaderRowIndex = headerRowIndex
             };
         }
         
