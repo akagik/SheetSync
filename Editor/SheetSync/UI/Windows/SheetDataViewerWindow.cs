@@ -185,6 +185,9 @@ namespace SheetSync.UI.Windows
         
         private void DrawOptimizedDataGrid()
         {
+            if (_sheetData == null || _sheetData.EditedValues == null)
+                return;
+                
             var viewRect = EditorGUILayout.GetControlRect(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
             
             // 列の開始位置を事前計算
@@ -194,7 +197,8 @@ namespace SheetSync.UI.Windows
                 _needsRecalculation = false;
             }
             
-            float totalHeight = _sheetData.RowCount * _rowHeight;
+            // ヘッダー行を含めた総高さ
+            float totalHeight = (_sheetData.RowCount + 1) * _rowHeight;
             
             var contentRect = new Rect(0, 0, _totalWidth, totalHeight);
             
@@ -208,7 +212,7 @@ namespace SheetSync.UI.Windows
             // マウスイベント処理
             HandleMouseEvents(viewRect);
             
-            // ヘッダー行の描画（スクロール位置に固定）
+            // ヘッダー行の描画
             DrawHeaders(viewRect);
             
             // 可視範囲のデータのみ描画
@@ -226,15 +230,16 @@ namespace SheetSync.UI.Windows
         private void CalculateColumnPositions()
         {
             _columnStartPositions = new float[_sheetData.ColumnCount + 1];
-            _totalWidth = _showRowNumbers ? 50 : 0;
-            _columnStartPositions[0] = _totalWidth;
+            float startX = _showRowNumbers ? 50 : 0;
+            _columnStartPositions[0] = startX;
             
             for (int col = 0; col < _sheetData.ColumnCount; col++)
             {
                 var width = GetColumnWidth(col);
-                _totalWidth += width;
-                _columnStartPositions[col + 1] = _totalWidth;
+                _columnStartPositions[col + 1] = _columnStartPositions[col] + width;
             }
+            
+            _totalWidth = _columnStartPositions[_sheetData.ColumnCount];
         }
         
         private void CalculateVisibleRange(Rect viewRect)
@@ -246,6 +251,9 @@ namespace SheetSync.UI.Windows
             // 可視列の計算
             _visibleColStart = 0;
             _visibleColEnd = _sheetData.ColumnCount;
+            
+            if (_columnStartPositions == null || _columnStartPositions.Length == 0)
+                return;
             
             float xStart = _scrollPosition.x;
             float xEnd = _scrollPosition.x + viewRect.width;
@@ -266,8 +274,11 @@ namespace SheetSync.UI.Windows
         
         private void DrawHeaders(Rect viewRect)
         {
-            // ヘッダー行を固定位置に描画
-            float yPos = _scrollPosition.y;
+            if (_columnStartPositions == null || _columnStartPositions.Length == 0)
+                return;
+                
+            // ヘッダー行は常に最上部に表示
+            float yPos = 0;
             
             // 行番号ヘッダー
             if (_showRowNumbers)
@@ -301,13 +312,16 @@ namespace SheetSync.UI.Windows
         
         private void DrawVisibleCells(Rect viewRect)
         {
+            if (_columnStartPositions == null || _columnStartPositions.Length == 0)
+                return;
+                
             // ヘッダー行の高さを考慮
             float headerHeight = _rowHeight;
             
             // 可視範囲のセルのみ描画
             for (int row = _visibleRowStart; row < _visibleRowEnd && row < _sheetData.EditedValues.Count; row++)
             {
-                float yPos = row * _rowHeight - _scrollPosition.y + headerHeight;
+                float yPos = (row + 1) * _rowHeight - _scrollPosition.y;
                 
                 // 行番号
                 if (_showRowNumbers)
@@ -415,8 +429,11 @@ namespace SheetSync.UI.Windows
         
         private Vector2Int GetCellFromMousePosition(Vector2 mousePos)
         {
+            if (_columnStartPositions == null || _columnStartPositions.Length == 0)
+                return new Vector2Int(-1, -1);
+                
             // ヘッダー行の高さを考慮して行を計算
-            int row = Mathf.FloorToInt((mousePos.y + _scrollPosition.y - _rowHeight) / _rowHeight);
+            int row = Mathf.FloorToInt((mousePos.y + _scrollPosition.y) / _rowHeight) - 1;
             
             int col = -1;
             float xPos = mousePos.x + _scrollPosition.x;
@@ -566,8 +583,11 @@ namespace SheetSync.UI.Windows
         
         private void ScrollToCell(int row, int col)
         {
+            if (_columnStartPositions == null || _columnStartPositions.Length == 0 || col >= _columnStartPositions.Length)
+                return;
+                
             float xPos = _columnStartPositions[col];
-            float yPos = row * _rowHeight;
+            float yPos = (row + 1) * _rowHeight;  // ヘッダー行を考慮
             
             var viewRect = position;
             viewRect.height -= 40;
