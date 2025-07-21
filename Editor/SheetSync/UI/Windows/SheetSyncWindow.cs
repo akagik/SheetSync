@@ -36,7 +36,7 @@ namespace SheetSync
         /// <summary>
         /// SheetSync ウィンドウを開きます
         /// </summary>
-        [MenuItem("SheetSync/Open SheetSync", false, 0)]
+        [MenuItem("Tools/SheetSync/Open SheetSync", false, 0)]
         public static void OpenWindow()
         {
             GetWindow<SheetSyncWindow>(false, "Sheet Sync", true).Show();

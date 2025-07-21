@@ -46,7 +46,7 @@ namespace SheetSync
             public bool alreadyMigrated;
         }
         
-        [MenuItem("SheetSync/Migration/Batch Migration Tool")]
+        [MenuItem("Tools/SheetSync/Migration/Batch Migration Tool")]
         public static void OpenWindow()
         {
             var window = GetWindow<ConvertSettingMigrationWindow>("SheetSync Migration Tool");

@@ -422,7 +422,7 @@ namespace SheetSync
         /// <summary>
         /// API キーをクリア
         /// </summary>
-        [MenuItem("SheetSync/Google API/Clear API Key")]
+        [MenuItem("Tools/SheetSync/Google API/Clear API Key")]
         public static void ClearApiKey()
         {
             EditorPrefs.DeleteKey("SheetSync_ApiKey");
