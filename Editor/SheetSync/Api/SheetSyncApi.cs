@@ -64,7 +64,8 @@ namespace SheetSync.Api
         public class UpdateRequest
         {
             public string spreadsheetId;
-            public string sheetName;
+            public string sheetName;  // オプション：gidが指定された場合は無視される
+            public string gid;        // オプション：sheetNameより優先される
             public string keyColumn;
             public string keyValue;
             public Dictionary<string, object> updateData;
@@ -77,7 +78,8 @@ namespace SheetSync.Api
         public class BatchUpdateRequest
         {
             public string spreadsheetId;
-            public string sheetName;
+            public string sheetName;  // オプション：gidが指定された場合は無視される
+            public string gid;        // オプション：sheetNameより優先される
             public string keyColumn;
             public Dictionary<string, Dictionary<string, object>> updates;
         }
@@ -175,20 +177,61 @@ namespace SheetSync.Api
                 }
 
                 if (string.IsNullOrEmpty(request.spreadsheetId) || 
-                    string.IsNullOrEmpty(request.sheetName) ||
                     string.IsNullOrEmpty(request.keyColumn) ||
                     string.IsNullOrEmpty(request.keyValue))
                 {
                     return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Missing required parameters"));
                 }
+                
+                // sheetNameとgidの両方が空の場合はエラー
+                if (string.IsNullOrEmpty(request.sheetName) && string.IsNullOrEmpty(request.gid))
+                {
+                    return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Either sheetName or gid must be provided"));
+                }
 
+                // GIDが指定されている場合はシート名を取得
+                string actualSheetName = request.sheetName;
+                if (!string.IsNullOrEmpty(request.gid))
+                {
+                    try
+                    {
+                        // 認証チェック
+                        if (!GoogleServiceAccountAuth.IsAuthenticated)
+                        {
+                            return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Service account authentication required"));
+                        }
+                        
+                        var authService = GoogleServiceAccountAuth.GetAuthenticatedService();
+                        var sheetNameTask = Task.Run(async () => 
+                            await GoogleSheetsUtility.GetSheetNameFromGidAsync(authService, request.spreadsheetId, request.gid)
+                        );
+                        
+                        if (sheetNameTask.Wait(TimeSpan.FromSeconds(10)))
+                        {
+                            actualSheetName = sheetNameTask.Result;
+                            if (string.IsNullOrEmpty(actualSheetName))
+                            {
+                                return JsonConvert.SerializeObject(ApiResponse<bool>.Error($"Sheet with GID '{request.gid}' not found"));
+                            }
+                        }
+                        else
+                        {
+                            return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Timeout while getting sheet name from GID"));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Failed to get sheet name from GID", ex.Message));
+                    }
+                }
+                
                 // サービスインスタンスを作成
                 var service = new SheetUpdateServiceAccountService();
                 
                 // 非同期メソッドを同期的に実行
                 var task = Task.Run(async () => await service.UpdateRowAsync(
                     request.spreadsheetId,
-                    request.sheetName,
+                    actualSheetName,
                     request.keyColumn,
                     request.keyValue,
                     request.updateData,
@@ -232,10 +275,15 @@ namespace SheetSync.Api
                 }
 
                 if (string.IsNullOrEmpty(request.spreadsheetId) || 
-                    string.IsNullOrEmpty(request.sheetName) ||
                     string.IsNullOrEmpty(request.keyColumn))
                 {
                     return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Missing required parameters"));
+                }
+                
+                // sheetNameとgidの両方が空の場合はエラー
+                if (string.IsNullOrEmpty(request.sheetName) && string.IsNullOrEmpty(request.gid))
+                {
+                    return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Either sheetName or gid must be provided"));
                 }
 
                 if (request.updates == null || request.updates.Count == 0)
@@ -243,13 +291,49 @@ namespace SheetSync.Api
                     return JsonConvert.SerializeObject(ApiResponse<bool>.Error("No update data provided"));
                 }
 
+                // GIDが指定されている場合はシート名を取得
+                string actualSheetName = request.sheetName;
+                if (!string.IsNullOrEmpty(request.gid))
+                {
+                    try
+                    {
+                        // 認証チェック
+                        if (!GoogleServiceAccountAuth.IsAuthenticated)
+                        {
+                            return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Service account authentication required"));
+                        }
+                        
+                        var authService = GoogleServiceAccountAuth.GetAuthenticatedService();
+                        var sheetNameTask = Task.Run(async () => 
+                            await GoogleSheetsUtility.GetSheetNameFromGidAsync(authService, request.spreadsheetId, request.gid)
+                        );
+                        
+                        if (sheetNameTask.Wait(TimeSpan.FromSeconds(10)))
+                        {
+                            actualSheetName = sheetNameTask.Result;
+                            if (string.IsNullOrEmpty(actualSheetName))
+                            {
+                                return JsonConvert.SerializeObject(ApiResponse<bool>.Error($"Sheet with GID '{request.gid}' not found"));
+                            }
+                        }
+                        else
+                        {
+                            return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Timeout while getting sheet name from GID"));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Failed to get sheet name from GID", ex.Message));
+                    }
+                }
+                
                 // サービスインスタンスを作成
                 var service = new SheetUpdateServiceAccountService();
                 
                 // 非同期メソッドを同期的に実行
                 var task = Task.Run(async () => await service.UpdateMultipleRowsAsync(
                     request.spreadsheetId,
-                    request.sheetName,
+                    actualSheetName,
                     request.keyColumn,
                     request.updates,
                     verbose: true
@@ -291,7 +375,8 @@ namespace SheetSync.Api
             var sample = new UpdateRequest
             {
                 spreadsheetId = "your-spreadsheet-id",
-                sheetName = "Sheet1",
+                sheetName = "Sheet1",  // または gid を使用
+                gid = "1380898534",     // sheetName の代わりに使用可能
                 keyColumn = "ID",
                 keyValue = "123",
                 updateData = new Dictionary<string, object>
@@ -314,7 +399,8 @@ namespace SheetSync.Api
             var sample = new BatchUpdateRequest
             {
                 spreadsheetId = "your-spreadsheet-id",
-                sheetName = "Sheet1",
+                sheetName = "Sheet1",  // または gid を使用
+                gid = "1380898534",     // sheetName の代わりに使用可能
                 keyColumn = "ID",
                 updates = new Dictionary<string, Dictionary<string, object>>
                 {
