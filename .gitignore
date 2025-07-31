@@ -7,3 +7,7 @@
 /worklogs.meta
 /logs
 /logs.meta
+
+# MCP
+/.mcp.json
+/.mcp.json.meta
