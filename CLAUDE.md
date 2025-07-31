@@ -583,3 +583,57 @@ private static async Task<string> GetSheetNameFromGidAsync(SheetsService service
 - **2箇所以上で使われる可能性のあるロジック**は積極的に共通関数化を検討。
 - **呼び出し箇所が1つでも、「再利用の可能性 + テスト容易性 + 責務の明確化」**の観点で分割を正当化できるなら、迷わず抽出してよい。
 
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+
+## SheetSync 外部API
+
+SheetSync には、Unity外部から操作するための静的APIが実装されています。
+
+### SheetSyncApi
+
+`SheetSync.Api.SheetSyncApi` クラスは、MCP経由でAIや外部システムから呼び出すための静的メソッドを提供します。
+
+#### 主な機能
+
+1. **認証管理**
+   - `InitializeAuth(string credentialsPath)` - サービスアカウント認証の初期化
+   - `CheckAuthStatus()` - 認証状態の確認
+
+2. **データ更新**
+   - `UpdateRow(string requestJson)` - 単一行の更新
+   - `UpdateMultipleRows(string requestJson)` - 複数行の一括更新
+
+3. **ユーティリティ**
+   - `GetApiInfo()` - API情報の取得
+   - `GetSampleUpdateRequest()` - サンプルリクエストの取得
+   - `GetSampleBatchUpdateRequest()` - バッチ更新サンプルの取得
+
+#### MCP経由での呼び出し例
+
+```json
+{
+  "typeName": "SheetSync.Api.SheetSyncApi",
+  "methodName": "UpdateRow",
+  "parameters": [
+    {
+      "type": "string",
+      "value": "{\"spreadsheetId\":\"1234567890\",\"sheetName\":\"Sheet1\",\"keyColumn\":\"ID\",\"keyValue\":\"123\",\"updateData\":{\"Name\":\"Updated Name\",\"Age\":\"30\"}}"
+    }
+  ]
+}
+```
+
+#### 設計原則
+
+- すべてのメソッドは静的メソッド
+- 複雑なデータはJSON文字列として受け渡し
+- 統一されたApiResponse構造でエラーハンドリング
+- 非同期処理を同期的に実行してタイムアウト対応
+
+詳細は `/Docs/SheetSyncApi.md` を参照してください。
+
