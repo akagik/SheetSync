@@ -121,11 +121,18 @@ namespace SheetSync
 
                 if (!settings.isEnum)
                 {
-                    EditorUtility.DisplayDialog(
-                        "Code Generated",
-                        "Please reimport for creating assets after compiling",
-                        "ok"
-                    );
+                    // コンパイルを待機してからアセットを作成する
+                    Debug.Log("Code generated. Waiting for compilation to complete...");
+                    
+                    // AssetDatabase の更新を強制
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
+                    
+                    // コンパイル完了の検出とアセット作成を別のコルーチンで実行
+                    EditorApplication.delayCall += () => {
+                        EditorCoroutineRunner.StartCoroutine(WaitForCompilationAndCreateAssets(settings, gSettings, createAssetsJob));
+                    };
+                    
                     yield break;
                 }
             }
@@ -200,6 +207,88 @@ namespace SheetSync
                     Debug.LogError("<color=red>Validation Fails...</color>");
                     Debug.LogError("Validation に失敗しました。テーブルを見直して正しいデータに修正してください。");
                 }
+            }
+        }
+        
+        /// <summary>
+        /// コンパイル完了を待機してアセットを作成する
+        /// </summary>
+        private static IEnumerator WaitForCompilationAndCreateAssets(
+            SheetSync.ConvertSetting settings, 
+            SheetSync.GlobalCCSettings gSettings, 
+            CreateAssetsJob createAssetsJob)
+        {
+            // コンパイル中の間待機
+            while (EditorApplication.isCompiling)
+            {
+                yield return null;
+            }
+            
+            // 少し待機してからアセット作成を実行
+            yield return new WaitForSecondsRealtime(0.5f);
+            
+            Debug.Log("Creating assets after compilation...");
+            
+            // アセット作成を実行
+            var generatedAssets = createAssetsJob.Execute();
+            
+            // AfterImport 処理
+            for (int i = 0; i < settings.executeAfterImport.Count; i++)
+            {
+                var afterSettings = settings.executeAfterImport[i];
+                if (afterSettings != null)
+                {
+                    yield return EditorCoroutineRunner.StartCoroutine(ExecuteImport(afterSettings));
+                }
+            }
+            
+            // AfterImportMethod 処理
+            for (int i = 0; i < settings.executeMethodAfterImport.Count; i++)
+            {
+                var methodName = settings.executeMethodAfterImport[i];
+                if (MethodReflection.TryParse(methodName, out var info))
+                {
+                    info.methodInfo.Invoke(null, new[] { generatedAssets });
+                }
+                else
+                {
+                    Debug.LogError($"不正なメソッド名の指定なので afterImport メソッド呼び出しをスキップしました: {methodName}");
+                }
+            }
+            
+            // ValidationMethod 処理
+            bool validationOk = true;
+            for (int i = 0; i < settings.executeValidationAfterImport.Count; i++)
+            {
+                var methodName = settings.executeValidationAfterImport[i];
+                if (MethodReflection.TryParse(methodName, out var info))
+                {
+                    object resultObj = info.methodInfo.Invoke(null, new[] { generatedAssets });
+                    if (resultObj is bool resultBool)
+                    {
+                        validationOk &= resultBool;
+                    }
+                    else
+                    {
+                        validationOk = false;
+                        Debug.LogError($"Validation Method は bool 値を返す必要があります: {methodName}");
+                    }
+                }
+                else
+                {
+                    validationOk = false;
+                    Debug.LogError($"不正なメソッド名の指定なので Validation メソッド呼び出しをスキップしました: {methodName}");
+                }
+            }
+            
+            if (validationOk)
+            {
+                Debug.Log("<color=green>Validation Success</color>");
+            }
+            else
+            {
+                Debug.LogError("<color=red>Validation Fails...</color>");
+                Debug.LogError("Validation に失敗しました。テーブルを見直して正しいデータに修正してください。");
             }
         }
         
