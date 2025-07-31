@@ -158,6 +158,27 @@ namespace SheetSync.Tests
         }
 
         [Test]
+        public void ConvertInt_WithFullyQualifiedFlagsEnum_ReturnsCombinedValue()
+        {
+            // Arrange & Act
+            var result = Str2TypeConverter.Convert(typeof(int), "FighterType.Soldier | FighterType.Archer");
+            
+            // Assert
+            Assert.AreEqual((int)(FighterType.Soldier | FighterType.Archer), result);
+        }
+
+        [Test]
+        public void ConvertInt_WithMixedFlagsEnum_ReturnsCombinedValue()
+        {
+            // Arrange & Act
+            // 混合形式：最初は完全修飾、次は値のみ
+            var result = Str2TypeConverter.Convert(typeof(int), "FighterType.Soldier | Archer | Sorcerer");
+            
+            // Assert
+            Assert.AreEqual((int)(FighterType.Soldier | FighterType.Archer | FighterType.Sorcerer), result);
+        }
+
+        [Test]
         public void ConvertInt_WithNumericString_ReturnsIntValue()
         {
             // Arrange & Act

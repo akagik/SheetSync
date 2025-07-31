@@ -13,11 +13,18 @@ namespace SheetSync
         /// 文字列をEnum値に変換する
         /// "EnumType.Value" 形式の文字列を受け入れ、型名からEnum型を検索して変換する
         /// Flags属性を持つEnumの場合は、ビット演算（|）もサポートする
+        /// "EnumType.Value1 | EnumType.Value2" のような完全修飾形式もサポート
         /// </summary>
         /// <param name="value">変換元の文字列</param>
         /// <returns>変換されたEnum値（int型）、変換できない場合はnull</returns>
         public static object ParseEnumString(string value)
         {
+            // "|" が含まれている場合は、フラグ形式として処理
+            if (value.Contains("|"))
+            {
+                return ParseFullyQualifiedFlagsEnum(value);
+            }
+            
             // "EnumType.Value" 形式の解析
             string[] splits = value.Split('.');
             
@@ -121,6 +128,87 @@ namespace SheetSync
                     
                 object parsedValue = Enum.Parse(enumType, trimmedPart);
                 result |= (int)parsedValue;
+            }
+            
+            return result;
+        }
+        
+        /// <summary>
+        /// 完全修飾形式のFlags enum解析
+        /// "EnumType.Value1 | EnumType.Value2" のような形式をサポート
+        /// </summary>
+        private static object ParseFullyQualifiedFlagsEnum(string value)
+        {
+            // "|" で分割して各値を解析
+            string[] parts = value.Split('|');
+            int result = 0;
+            Type enumType = null;
+            
+            foreach (string part in parts)
+            {
+                string trimmedPart = part.Trim();
+                if (string.IsNullOrEmpty(trimmedPart))
+                    continue;
+                
+                // "." が含まれている場合は完全修飾形式
+                if (trimmedPart.Contains("."))
+                {
+                    string[] splits = trimmedPart.Split('.');
+                    if (splits.Length != 2)
+                        continue;
+                    
+                    string typeName = splits[0];
+                    string enumValue = splits[1];
+                    
+                    // 型を特定（最初の要素から型を取得）
+                    if (enumType == null)
+                    {
+                        List<Type> candidates = CCLogic.GetTypeByName(typeName);
+                        if (candidates.Count == 0)
+                        {
+                            Debug.LogWarningFormat("指定のenum型 '{0}' が見つかりませんでした", typeName);
+                            return null;
+                        }
+                        
+                        enumType = candidates[0];
+                        
+                        if (!enumType.IsEnum)
+                        {
+                            Debug.LogWarningFormat("指定の型 '{0}' はEnum型ではありません", typeName);
+                            return null;
+                        }
+                    }
+                    
+                    try
+                    {
+                        object parsedValue = Enum.Parse(enumType, enumValue);
+                        result |= Convert.ToInt32(parsedValue);
+                    }
+                    catch (ArgumentException)
+                    {
+                        Debug.LogWarningFormat("Enum型 '{0}' に値 '{1}' が存在しません", typeName, enumValue);
+                        return null;
+                    }
+                }
+                else if (enumType != null)
+                {
+                    // 型が既に特定されている場合は、値のみの形式も受け入れる
+                    try
+                    {
+                        object parsedValue = Enum.Parse(enumType, trimmedPart);
+                        result |= Convert.ToInt32(parsedValue);
+                    }
+                    catch (ArgumentException)
+                    {
+                        Debug.LogWarningFormat("Enum型 '{0}' に値 '{1}' が存在しません", enumType.Name, trimmedPart);
+                        return null;
+                    }
+                }
+                else
+                {
+                    Debug.LogWarningFormat("最初の要素は完全修飾形式（EnumType.Value）である必要があります");
+                    return null;
+                }
             }
             
             return result;
