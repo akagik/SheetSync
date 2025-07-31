@@ -69,17 +69,26 @@ namespace SheetSync.Services
 
             if (s.isEnum)
             {
-                CsvData headers  = csv.Slice(gSettings.rowIndexOfName, gSettings.rowIndexOfName + 1);
-                CsvData contents = csv.Slice(gSettings.rowIndexOfEnumContentStart);
-                string  code     = EnumGenerator.Generate(s.className, headers, contents, s.verbose);
-
                 string filePath = Path.Combine(directoryPath, s.className + ".cs");
-                using (StreamWriter writer = File.CreateText(filePath))
+                
+                // ファイルが既に存在する場合はスキップ
+                if (File.Exists(filePath))
                 {
-                    writer.WriteLine(code);
+                    Debug.LogFormat("Skip \"{0}\" (already exists)", filePath);
                 }
+                else
+                {
+                    CsvData headers  = csv.Slice(gSettings.rowIndexOfName, gSettings.rowIndexOfName + 1);
+                    CsvData contents = csv.Slice(gSettings.rowIndexOfEnumContentStart);
+                    string  code     = EnumGenerator.Generate(s.className, headers, contents, s.verbose);
 
-                Debug.LogFormat("Create \"{0}\"", filePath);
+                    using (StreamWriter writer = File.CreateText(filePath))
+                    {
+                        writer.WriteLine(code);
+                    }
+
+                    Debug.LogFormat("Create \"{0}\"", filePath);
+                }
             }
             else
             {
@@ -87,44 +96,62 @@ namespace SheetSync.Services
 
                 if (s.classGenerate)
                 {
-                    string code = ClassGenerator.GenerateClass(s.className, fields, s.IsPureClass);
-
                     string filePath = Path.Combine(directoryPath, s.className + ".cs");
-                    using (StreamWriter writer = File.CreateText(filePath))
+                    
+                    // ファイルが既に存在する場合はスキップ
+                    if (File.Exists(filePath))
                     {
-                        writer.WriteLine(code);
+                        Debug.LogFormat("Skip \"{0}\" (already exists)", filePath);
                     }
+                    else
+                    {
+                        string code = ClassGenerator.GenerateClass(s.className, fields, s.IsPureClass);
+                        
+                        using (StreamWriter writer = File.CreateText(filePath))
+                        {
+                            writer.WriteLine(code);
+                        }
 
-                    Debug.LogFormat("Create \"{0}\"", filePath);
+                        Debug.LogFormat("Create \"{0}\"", filePath);
+                    }
                 }
 
                 if (s.tableClassGenerate)
                 {
-                    int[] keyIndexes = ClassGenerator.FindKeyIndexes(s, fields);
-
-                    string[] keys = s.keys;
-                    Field[]  key  = null;
-                    if (keyIndexes.Length > 0)
+                    string filePath = Path.Combine(directoryPath, s.TableClassName + ".cs");
+                    
+                    // ファイルが既に存在する場合はスキップ
+                    if (File.Exists(filePath))
                     {
-                        List<Field> keyFieldList = new List<Field>();
+                        Debug.LogFormat("Skip \"{0}\" (already exists)", filePath);
+                    }
+                    else
+                    {
+                        int[] keyIndexes = ClassGenerator.FindKeyIndexes(s, fields);
 
-                        for (int i = 0; i < keyIndexes.Length; i++)
+                        string[] keys = s.keys;
+                        Field[]  key  = null;
+                        if (keyIndexes.Length > 0)
                         {
-                            keyFieldList.Add(fields[keyIndexes[i]]);
+                            List<Field> keyFieldList = new List<Field>();
+
+                            for (int i = 0; i < keyIndexes.Length; i++)
+                            {
+                                keyFieldList.Add(fields[keyIndexes[i]]);
+                            }
+
+                            key = keyFieldList.ToArray();
                         }
 
-                        key = keyFieldList.ToArray();
+                        string code = ClassGenerator.GenerateTableClass(s, s.TableClassName, key);
+
+                        using (StreamWriter writer = File.CreateText(filePath))
+                        {
+                            writer.WriteLine(code);
+                        }
+
+                        Debug.LogFormat("Create \"{0}\"", filePath);
                     }
-
-                    string code = ClassGenerator.GenerateTableClass(s, s.TableClassName, key);
-
-                    string filePath = Path.Combine(directoryPath, s.TableClassName + ".cs");
-                    using (StreamWriter writer = File.CreateText(filePath))
-                    {
-                        writer.WriteLine(code);
-                    }
-
-                    Debug.LogFormat("Create \"{0}\"", filePath);
                 }
             }
         }
