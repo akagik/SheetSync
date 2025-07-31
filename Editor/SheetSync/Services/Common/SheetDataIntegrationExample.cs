@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
-using Google.Apis.Sheets.v4;
 using SheetSync.Services.Auth;
 using SheetSync.Services.Update;
 using SheetSync.Services.Insert;
@@ -11,14 +10,46 @@ using SheetSync.Services.Insert;
 namespace SheetSync.Services.Common
 {
     /// <summary>
-    /// ExtendedSheetDataを使用したサービス統合の例
-    /// SheetUpdateServiceAccountService や SheetInsertServiceAccountService との連携方法を示す
+    /// ExtendedSheetData を使用したサービス統合の実装例とヘルパーメソッドを提供するクラス
+    /// 
+    /// このクラスは、Google Sheets との双方向データ同期を実現するための実装パターンを示します。
+    /// ExtendedSheetData の変更追跡機能を活用し、既存の SheetUpdateServiceAccountService や 
+    /// SheetInsertServiceAccountService と連携して、効率的なデータ同期を実現します。
+    /// 
+    /// 主な機能:
+    /// 1. スプレッドシートから ExtendedSheetData へのデータ読み込み
+    /// 2. ExtendedSheetData の変更履歴を使用した差分更新
+    /// 3. 挿入・更新・削除の各操作の自動振り分け
+    /// 4. ヘッダー行の自動検出とビューの作成
+    /// 
+    /// 使用例:
+    /// // データの読み込み
+    /// var sheetData = await SheetDataIntegrationExample.LoadSheetDataAsync(spreadsheetId, sheetName);
+    /// 
+    /// // データの編集
+    /// sheetData.UpdateRowByKey("ID", "123", new Dictionary<string, object> { ["Name"] = "Updated" });
+    /// 
+    /// // 変更の適用
+    /// await SheetDataIntegrationExample.UpdateSpreadsheetWithSheetData(spreadsheetId, sheetName, sheetData);
     /// </summary>
     public static class SheetDataIntegrationExample
     {
         /// <summary>
-        /// ExtendedSheetDataを使用してスプレッドシートを更新する例
+        /// ExtendedSheetData の変更履歴を使用してスプレッドシートを更新します
+        /// 
+        /// このメソッドは ExtendedSheetData に記録された変更（挿入、更新、削除）を
+        /// 適切なサービスに振り分けて実行します。変更は以下の順序で適用されます：
+        /// 1. 削除（降順でインデックスのずれを防ぐ）
+        /// 2. 挿入（新しい行の追加）
+        /// 3. 更新（既存行の変更）
+        /// 
+        /// 注意: 現在、削除機能は未実装です。
         /// </summary>
+        /// <param name="spreadsheetId">更新対象のスプレッドシートID</param>
+        /// <param name="sheetName">更新対象のシート名</param>
+        /// <param name="sheetData">変更が記録された ExtendedSheetData インスタンス</param>
+        /// <param name="verbose">詳細ログを出力するかどうか</param>
+        /// <returns>すべての更新が成功した場合は true、それ以外は false</returns>
         public static async Task<bool> UpdateSpreadsheetWithSheetData(
             string spreadsheetId,
             string sheetName,
@@ -114,8 +145,23 @@ namespace SheetSync.Services.Common
         }
         
         /// <summary>
-        /// スプレッドシートからExtendedSheetDataを作成する例
+        /// Google Sheets からデータを読み込み、ExtendedSheetData インスタンスを作成します
+        /// 
+        /// このメソッドは以下の処理を行います：
+        /// 1. サービスアカウント認証の確認
+        /// 2. スプレッドシートからデータの取得
+        /// 3. ヘッダー行の自動検出または GlobalCCSettings からの取得
+        /// 4. ヘッダー行に基づいたデータビューの作成
+        /// 
+        /// ヘッダー検出の優先順位：
+        /// 1. GlobalCCSettings の rowIndexOfName 設定値
+        /// 2. 一般的なカラム名（key, id, name, ja, en, ko）による自動検出
+        /// 3. ヒューリスティックによる推測
         /// </summary>
+        /// <param name="spreadsheetId">読み込み対象のスプレッドシートID</param>
+        /// <param name="sheetName">読み込み対象のシート名</param>
+        /// <param name="verbose">詳細ログを出力するかどうか</param>
+        /// <returns>作成された ExtendedSheetData インスタンス、エラー時は null</returns>
         public static async Task<ExtendedSheetData> LoadSheetDataAsync(
             string spreadsheetId,
             string sheetName,
@@ -185,8 +231,21 @@ namespace SheetSync.Services.Common
         }
         
         /// <summary>
-        /// 使用例: データの編集と差分表示
+        /// ExtendedSheetData を使用したデータ編集と差分表示の実装例
+        /// 
+        /// このメソッドは以下の一連の操作を実演します：
+        /// 1. スプレッドシートからデータを読み込み
+        /// 2. キーインデックスの構築（高速検索用）
+        /// 3. データの編集（更新、挿入）
+        /// 4. 変更差分の表示
+        /// 5. 変更の適用
+        /// 
+        /// このメソッドは実際のアプリケーションでの使用パターンを示すサンプルです。
+        /// 実際の実装では、ユーザー確認のダイアログを表示するなどの処理を追加してください。
         /// </summary>
+        /// <param name="spreadsheetId">操作対象のスプレッドシートID</param>
+        /// <param name="sheetName">操作対象のシート名</param>
+        /// <returns>すべての操作が成功した場合は true、それ以外は false</returns>
         public static async Task<bool> ExampleEditAndShowDiff(
             string spreadsheetId,
             string sheetName)
@@ -244,8 +303,15 @@ namespace SheetSync.Services.Common
         }
         
         /// <summary>
-        /// 行のキー値を取得するヘルパーメソッド
+        /// 指定された行のキー値を取得するヘルパーメソッド
+        /// 
+        /// このメソッドは ID カラムの値を行のキーとして使用します。
+        /// UpdateSpreadsheetWithSheetData メソッド内で、更新対象の行を
+        /// 特定するために使用されます。
         /// </summary>
+        /// <param name="sheetData">データを含む ExtendedSheetData インスタンス</param>
+        /// <param name="rowIndex">キー値を取得する行のインデックス</param>
+        /// <returns>ID カラムの値（文字列）、取得できない場合は null</returns>
         private static string GetRowKey(ExtendedSheetData sheetData, int rowIndex)
         {
             // この例ではIDカラムを使用
