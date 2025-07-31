@@ -10,7 +10,7 @@ namespace SheetSync
     public static class EnumConverter
     {
         /// <summary>
-        /// 文字列をEnum値に変換する
+        /// 文字列をEnum値に変換する（int型として返す）
         /// "EnumType.Value" 形式の文字列を受け入れ、型名からEnum型を検索して変換する
         /// Flags属性を持つEnumの場合は、ビット演算（|）もサポートする
         /// "EnumType.Value1 | EnumType.Value2" のような完全修飾形式もサポート

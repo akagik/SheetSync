@@ -16,6 +16,7 @@ namespace SheetSync
         private SheetSync.ConvertSetting setting;
         private Type[] customAssetTypes;
         private HashSet<Type> customAssetTypeSet;
+        private AssetsGeneratorService generatorService;
 
         private Field[] fields;
         private CsvData content;
@@ -52,12 +53,14 @@ namespace SheetSync
             setting = _setting;
             fields = _fields;
             content = _content;
+            generatorService = new AssetsGeneratorService();
         }
 
         public void SetCustomAssetTypes(Type[] _customAssetTypes)
         {
             customAssetTypes = _customAssetTypes;
             customAssetTypeSet = new HashSet<Type>(_customAssetTypes);
+            generatorService = new AssetsGeneratorService(_customAssetTypes);
         }
 
         public void Setup(Type _assetType, string settingPath)
@@ -249,9 +252,7 @@ namespace SheetSync
 
                     if (elementType != null)
                     {
-                        int length = 0;
-                        var v = Array.CreateInstance(elementType, length);
-                        info.SetValue(data, v);
+                        generatorService.InitializeArrayField(data, info);
                     }
                     else
                     {
@@ -301,72 +302,20 @@ namespace SheetSync
                 Type fieldType = fields[j].GetTypeAs(info);
 
                 // (i, j) セルに格納されている生のテキストデータを fieldType 型に変換する.
-                object value = null;
+                string sValue = content.Get(i, j);
+                object value = generatorService.ConvertCsvValueToFieldType(fieldType, sValue);
+
+                if (sValue != "" && value == null)
                 {
-                    string sValue = content.Get(i, j);
-
-                    // 文字列型のときは " でラップする.
-                    if (fieldType == typeof(string))
-                    {
-                        sValue = "\"" + sValue + "\"";
-                    }
-
-                    if (sValue == "")
-                    {
-                        // if ((gSettings.logType & ResultType.EmptyCell) != 0)
-                        // {
-                        //     Debug.LogWarningFormat("{0} {1}行{2}列目: 空の値があります: {3}=\"{4}\"", setting.className, line,
-                        //         j + 1, info.Name, sValue);
-                        // }
-                    }
-                    else
-                    {
-                        value = Str2TypeConverter.Convert(fieldType, sValue);
-
-                        // 基本型で変換できないときは GlobalSettings の customAssetTypes で変換を試みる.
-                        if (value == null && customAssetTypeSet != null && customAssetTypeSet.Contains(fieldType))
-                        {
-                            value = Str2TypeConverter.LoadAsset(sValue, fieldType);
-                        }
-
-                        if (value == null)
-                        {
-                            // if ((gSettings.logType & ResultType.ConvertFails) != 0)
-                            // {
-                            //     Debug.LogErrorFormat("{0} {1}行{2}列目: 変換に失敗しました: {3}=\"{4}\"", setting.className, line,
-                            //         j + 1, info.Name, sValue);
-                            // }
-                        }
-                    }
+                    // if ((gSettings.logType & ResultType.ConvertFails) != 0)
+                    // {
+                    //     Debug.LogErrorFormat("{0} {1}行{2}列目: 変換に失敗しました: {3}=\"{4}\"", setting.className, line,
+                    //         j + 1, info.Name, sValue);
+                    // }
                 }
 
-                // フィールド名が配列要素の場合
-                // もともとの配列データを読み込んで、そこに value を追加した配列を value とする.
-                // TODO 添字を反映させる.
-                if (fields[j].isArrayField)
-                {
-                    var t = ((IEnumerable) info.GetValue(data));
-
-                    Type listType = typeof(List<>);
-                    var constructedListType = listType.MakeGenericType(info.FieldType.GetElementType());
-                    var objects = Activator.CreateInstance(constructedListType);
-
-                    IEnumerable<object> infoValue = ((IEnumerable) info.GetValue(data)).Cast<object>();
-
-                    if (infoValue != null)
-                    {
-                        for (int k = 0; k < infoValue.Count(); k++)
-                        {
-                            object obj = infoValue.ElementAt(k);
-                            objects.GetType().GetMethod("Add").Invoke(objects, new object[] {obj});
-                        }
-                    }
-
-                    objects.GetType().GetMethod("Add").Invoke(objects, new object[] {value});
-                    value = objects.GetType().GetMethod("ToArray").Invoke(objects, new object[] { });
-                }
-                
-                info.SetValue(data, value);
+                // フィールドに値を設定する
+                generatorService.SetFieldValue(data, info, value, fields[j].isArrayField);
             }
 
             if (!setting.IsPureClass)

@@ -1,6 +1,7 @@
 using System;
 using NUnit.Framework;
 using UnityEngine;
+using SheetSync.Tests.TestTypes;
 
 namespace SheetSync.Tests
 {
@@ -241,6 +242,49 @@ namespace SheetSync.Tests
             Assert.AreEqual(1, array[0]);
             Assert.AreEqual(2, array[1]);
             Assert.AreEqual(3, array[2]);
+        }
+
+        [Test]
+        public void ConvertHumanType_WithPlayerString_ReturnsPlayerEnum()
+        {
+            // Arrange & Act
+            var result = Str2TypeConverter.Convert(typeof(HumanType), "Player");
+            
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual((int)HumanType.Player, result);
+        }
+
+        [Test]
+        public void ConvertHumanType_WithEnemyString_ReturnsEnemyEnum()
+        {
+            // Arrange & Act
+            var result = Str2TypeConverter.Convert(typeof(HumanType), "Enemy");
+            
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual((int)HumanType.Enemy, result);
+        }
+
+        [Test]
+        public void ConvertHumanType_WithMultipleFlags_ReturnsCombinedEnum()
+        {
+            // Arrange & Act
+            var result = Str2TypeConverter.Convert(typeof(HumanType), "Player | Enemy");
+            
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual((int)(HumanType.Player | HumanType.Enemy), result);
+        }
+
+        [Test]
+        public void ConvertHumanType_WithInvalidValue_ReturnsNull()
+        {
+            // Arrange & Act
+            var result = Str2TypeConverter.Convert(typeof(HumanType), "InvalidType");
+            
+            // Assert
+            Assert.IsNull(result);
         }
     }
 }
