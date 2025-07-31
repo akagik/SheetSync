@@ -32,24 +32,7 @@
                 {
                     // enum チェックする
                     // 例えば int フィールドとして `KeyCode.Tab` のような値も許容するようにする.
-                    string[] splits = sValue.Split('.');
-
-                    if (splits.Length == 2)
-                    {
-                        string typeName = splits[0];
-                        string enumId   = splits[1];
-
-                        List<Type> candidates = CCLogic.GetTypeByName(typeName);
-
-                        if (candidates.Count > 2)
-                        {
-                            Debug.LogWarningFormat("指定の enum が複数見つかりました", typeName);
-                        }
-                        else if (candidates.Count == 1)
-                        {
-                            value = Enum.Parse(candidates[0], enumId);
-                        }
-                    }
+                    value = EnumConverter.ParseEnumString(sValue);
                 }
             }
             else if (t == typeof(float))
@@ -210,8 +193,7 @@
             // ユーザー定義型の enum
             else if (t.IsEnum)
             {
-                Type fieldType = t;
-                Enum.TryParse(fieldType, sValue, out value);
+                value = EnumConverter.ParseEnum(t, sValue);
             }
             else
             {
