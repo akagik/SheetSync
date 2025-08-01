@@ -201,7 +201,7 @@ namespace SheetSync
             return true;
         }
         
-        public ResultType CreateCsvAssetAt(int i, SheetSync.GlobalCCSettings gSettings)
+        public ResultType CreateCsvAssetAt(int i, SheetSync.SheetSyncGlobalSettings gSettings)
         {
             ResultType resultType = ResultType.None;
             

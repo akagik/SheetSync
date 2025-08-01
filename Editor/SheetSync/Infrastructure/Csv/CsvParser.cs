@@ -1,13 +1,12 @@
 ﻿using System;
 using KoheiUtils;
-using GlobalCCSettings = SheetSync.GlobalCCSettings;
 using SheetSync;
 
 namespace SheetSync
 {
     public static class CsvLogic
     {
-        public static CsvData GetValidCsvData(string csvText, SheetSync.GlobalCCSettings gSettings)
+        public static CsvData GetValidCsvData(string csvText, SheetSyncGlobalSettings gSettings)
         {
             var csvAsList = CsvParser.ReadAsList(csvText);
 
@@ -41,7 +40,7 @@ namespace SheetSync
             return csvData;
         }
         
-        public static Field[] GetFieldsFromHeader(ICsvData csv, GlobalCCSettings gSettings)
+        public static Field[] GetFieldsFromHeader(ICsvData csv, SheetSyncGlobalSettings gSettings)
         {
             // ICsvData を CsvData に変換
             CsvData csvData;
@@ -67,7 +66,7 @@ namespace SheetSync
             return GetFieldsFromHeader(csvData, gSettings);
         }
         
-        public static Field[] GetFieldsFromHeader(CsvData csv, GlobalCCSettings gSettings)
+        public static Field[] GetFieldsFromHeader(CsvData csv, SheetSyncGlobalSettings gSettings)
         {
             CsvData nameHeaders = csv.Slice(gSettings.rowIndexOfName, gSettings.rowIndexOfName + 1);
             CsvData typeHeaders = csv.Slice(gSettings.rowIndexOfType, gSettings.rowIndexOfType + 1);

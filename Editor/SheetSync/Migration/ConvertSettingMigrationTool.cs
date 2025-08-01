@@ -75,7 +75,7 @@ namespace SheetSync
         }
         
         [MenuItem("Assets/SheetSync/Migrate from KoheiUtils GlobalCCSettings", true)]
-        private static bool ValidateMigrateGlobalCCSettings()
+        private static bool ValidateMigrateSheetSyncGlobalSettings()
         {
             // KoheiUtils.GlobalCCSettings 型のアセットが選択されている場合のみ有効
             var selected = Selection.activeObject;
@@ -86,7 +86,7 @@ namespace SheetSync
         }
         
         [MenuItem("Assets/SheetSync/Migrate from KoheiUtils GlobalCCSettings")]
-        private static void MigrateGlobalCCSettings()
+        private static void MigrateSheetSyncGlobalSettings()
         {
             var selected = Selection.activeObject;
             if (selected == null) return;
@@ -99,7 +99,7 @@ namespace SheetSync
             var newPath = Path.Combine(directory, $"{originalName}_SheetSync.asset");
             
             // 変換実行
-            var success = MigrateGlobalCCSettingsAsset(selected, newPath);
+            var success = MigrateSheetSyncGlobalSettingsAsset(selected, newPath);
             
             if (success)
             {
@@ -109,7 +109,7 @@ namespace SheetSync
                     "OK");
                 
                 // 新しいアセットを選択
-                var newAsset = AssetDatabase.LoadAssetAtPath<SheetSync.GlobalCCSettings>(newPath);
+                var newAsset = AssetDatabase.LoadAssetAtPath<SheetSync.SheetSyncGlobalSettings>(newPath);
                 if (newAsset != null)
                 {
                     Selection.activeObject = newAsset;
@@ -205,12 +205,12 @@ namespace SheetSync
             }
         }
         
-        internal static bool MigrateGlobalCCSettingsAsset(Object koheiUtilsAsset, string newPath)
+        internal static bool MigrateSheetSyncGlobalSettingsAsset(Object koheiUtilsAsset, string newPath)
         {
             try
             {
                 // SheetSync版の新しいインスタンスを作成
-                var newSettings = ScriptableObject.CreateInstance<SheetSync.GlobalCCSettings>();
+                var newSettings = ScriptableObject.CreateInstance<SheetSync.SheetSyncGlobalSettings>();
                 
                 // SerializedObject を使用して値をコピー
                 var sourceObj = new SerializedObject(koheiUtilsAsset);

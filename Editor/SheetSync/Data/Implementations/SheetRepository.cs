@@ -98,7 +98,7 @@ namespace SheetSync
         /// CCLogic を通じてグローバル設定にアクセスします。
         /// これらの設定はコード生成やアセット作成時に使用されます。
         /// </remarks>
-        public GlobalCCSettings GetGlobalSettings()
+        public SheetSyncGlobalSettings GetGlobalSettings()
         {
             return SheetSync.CCLogic.GetGlobalSettings();
         }

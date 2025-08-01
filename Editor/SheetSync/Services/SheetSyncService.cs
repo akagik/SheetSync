@@ -77,7 +77,7 @@ namespace SheetSync
             }
 
             // データプロバイダーを取得
-            GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
+            SheetSyncGlobalSettings gSettings = CCLogic.GetGlobalSettings();
             ICsvDataProvider dataProvider = GetCsvDataProvider(settings, gSettings);
             CreateAssetsJob createAssetsJob = new CreateAssetsJob(settings, dataProvider);
             object generatedAssets = null;
@@ -215,7 +215,7 @@ namespace SheetSync
         /// </summary>
         private static IEnumerator WaitForCompilationAndCreateAssets(
             SheetSync.ConvertSetting settings, 
-            SheetSync.GlobalCCSettings gSettings, 
+            SheetSync.SheetSyncGlobalSettings gSettings, 
             CreateAssetsJob createAssetsJob)
         {
             // コンパイル中の間待機
@@ -303,7 +303,7 @@ namespace SheetSync
         /// </remarks>
         public static IEnumerator ExecuteDownload(SheetSync.ConvertSetting settings)
         {
-            SheetSync.GlobalCCSettings gSettings = SheetSync.CCLogic.GetGlobalSettings();
+            SheetSync.SheetSyncGlobalSettings gSettings = SheetSync.CCLogic.GetGlobalSettings();
 
             string csvPath = settings.GetCsvPath(gSettings);
             if (string.IsNullOrWhiteSpace(csvPath))
@@ -449,7 +449,7 @@ namespace SheetSync
         /// 各 ConvertSetting に対して順番にコード生成を実行し、
         /// 進捗状況を表示します。エラーが発生しても処理を継続します。
         /// </remarks>
-        public static void GenerateAllCode(SheetSync.ConvertSetting[] settings, SheetSync.GlobalCCSettings globalSettings)
+        public static void GenerateAllCode(SheetSync.ConvertSetting[] settings, SheetSync.SheetSyncGlobalSettings globalSettings)
         {
             int i = 0;
 
@@ -482,7 +482,7 @@ namespace SheetSync
         /// 各 ConvertSetting に対して ScriptableObject アセットを作成します。
         /// エラーが発生しても処理を継続します。
         /// </remarks>
-        public static void CreateAllAssets(SheetSync.ConvertSetting[] settings, SheetSync.GlobalCCSettings globalSettings)
+        public static void CreateAllAssets(SheetSync.ConvertSetting[] settings, SheetSync.SheetSyncGlobalSettings globalSettings)
         {
             try
             {
@@ -510,7 +510,7 @@ namespace SheetSync
         /// 指定された ConvertSetting に対してコード生成を実行し、
         /// 進捗状況を表示します。
         /// </remarks>
-        public static void GenerateOneCode(SheetSync.ConvertSetting settings, SheetSync.GlobalCCSettings globalSettings)
+        public static void GenerateOneCode(SheetSync.ConvertSetting settings, SheetSync.SheetSyncGlobalSettings globalSettings)
         {
             ShowProgress(settings.className, 0, 0, 1);
 
@@ -560,7 +560,7 @@ namespace SheetSync
         /// <param name="settings">変換設定</param>
         /// <param name="globalSettings">グローバル設定</param>
         /// <returns>ICsvDataProvider インスタンス</returns>
-        public static ICsvDataProvider GetCsvDataProvider(SheetSync.ConvertSetting settings, SheetSync.GlobalCCSettings globalSettings)
+        public static ICsvDataProvider GetCsvDataProvider(SheetSync.ConvertSetting settings, SheetSync.SheetSyncGlobalSettings globalSettings)
         {
             if (settings.useDirectImport && settings.useGSPlugin && directImportData != null)
             {

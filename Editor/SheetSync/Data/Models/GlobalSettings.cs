@@ -7,7 +7,7 @@ namespace SheetSync
     /// CsvConverter のグローバルな設定.
     /// </summary>
     [CreateAssetMenu(menuName = "SheetSync/GlobalSettings")]
-    public class GlobalCCSettings : ScriptableObject
+    public class SheetSyncGlobalSettings : ScriptableObject
     {
         [Header("Google Spread Sheet")]
         public string apiKey;

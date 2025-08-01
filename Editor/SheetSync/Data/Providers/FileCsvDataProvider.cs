@@ -10,9 +10,9 @@ namespace SheetSync
     public class FileCsvDataProvider : ICsvDataProvider
     {
         private readonly string _filePath;
-        private readonly GlobalCCSettings _globalSettings;
+        private readonly SheetSyncGlobalSettings _globalSettings;
         
-        public FileCsvDataProvider(string filePath, GlobalCCSettings globalSettings)
+        public FileCsvDataProvider(string filePath, SheetSyncGlobalSettings globalSettings)
         {
             _filePath = filePath;
             _globalSettings = globalSettings;

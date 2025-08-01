@@ -268,7 +268,7 @@ namespace SheetSync
                 {
                     EditorUtility.DisplayProgressBar("移行中", $"移行中: {item.originalAsset.name}", 1f);
                     
-                    var success = ConvertSettingMigrationTool.MigrateGlobalCCSettingsAsset(item.originalAsset, item.newPath);
+                    var success = ConvertSettingMigrationTool.MigrateSheetSyncGlobalSettingsAsset(item.originalAsset, item.newPath);
                     if (success)
                     {
                         migratedCount++;

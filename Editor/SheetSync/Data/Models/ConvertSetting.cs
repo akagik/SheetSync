@@ -293,7 +293,7 @@ namespace SheetSync
         // この設定で生成される行データを ScriptableObject でなく、ピュアクラスのインスタンスとして扱うか？
         public bool IsPureClass => (tableGenerate && onlyTableCreate) || join;
 
-        public string GetCsvPath(GlobalCCSettings gSettings)
+        public string GetCsvPath(SheetSyncGlobalSettings gSettings)
         {
             if (useGSPlugin && tempCsvPath)
             {

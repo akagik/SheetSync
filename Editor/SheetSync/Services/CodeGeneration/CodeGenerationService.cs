@@ -15,7 +15,7 @@ namespace SheetSync.Services
     /// </summary>
     public static class CodeGenerationService
     {
-        public static void GenerateCode(ConvertSetting s, GlobalCCSettings gSettings)
+        public static void GenerateCode(ConvertSetting s, SheetSyncGlobalSettings gSettings)
         {
             string settingPath = s.GetDirectoryPath();
             string    csvPath   = CCLogic.GetFilePathRelativesToAssets(settingPath, s.GetCsvPath(gSettings));
@@ -42,7 +42,7 @@ namespace SheetSync.Services
         /// <summary>
         /// ICsvData または CsvData からコードを生成する内部メソッド
         /// </summary>
-            public static void GenerateCodeFromData(ConvertSetting s, GlobalCCSettings gSettings, ICsvData csvData, string directoryPath)
+            public static void GenerateCodeFromData(ConvertSetting s, SheetSyncGlobalSettings gSettings, ICsvData csvData, string directoryPath)
         {
             // CsvData への変換（必要な場合）
             CsvData csv;
@@ -156,12 +156,12 @@ namespace SheetSync.Services
             }
         }
 
-        public static object CreateAssets(ConvertSetting s, GlobalCCSettings gSettings)
+        public static object CreateAssets(ConvertSetting s, SheetSyncGlobalSettings gSettings)
         {
             return CreateAssets(s, gSettings, null);
         }
         
-        public static object CreateAssets(ConvertSetting s, GlobalCCSettings gSettings, ICsvDataProvider dataProvider)
+        public static object CreateAssets(ConvertSetting s, SheetSyncGlobalSettings gSettings, ICsvDataProvider dataProvider)
         {
             // データプロバイダーが提供されていない場合は従来のファイルベース処理
             if (dataProvider == null)
@@ -228,7 +228,7 @@ namespace SheetSync.Services
             return CreateAssetsInternal(s, gSettings, providerFields, providerContents);
         }
         
-        private static object CreateAssetsInternal(ConvertSetting s, GlobalCCSettings gSettings, Field[] fields, object csvContents)
+        private static object CreateAssetsInternal(ConvertSetting s, SheetSyncGlobalSettings gSettings, Field[] fields, object csvContents)
         {
             string settingPath = s.GetDirectoryPath();
 

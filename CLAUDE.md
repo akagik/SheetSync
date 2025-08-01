@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Kohei Utils からの移行
 
-CsvConverterSettings や GlobalCCSettings などは本来でいうと SheetSync に配置したいが、互換性を保つために KoheiUtils のものを使って、 SheetSync からは除外しています。
+CsvConverterSettings などは本来でいうと SheetSync に配置したいが、互換性を保つために KoheiUtils のものを使って、 SheetSync からは除外しています。GlobalCCSettings は SheetSyncGlobalSettings として SheetSync パッケージ内で定義されています。
 将来的には廃止して、 SheetSync 由来のものに置き換えたいです。
 
 ## 開発環境

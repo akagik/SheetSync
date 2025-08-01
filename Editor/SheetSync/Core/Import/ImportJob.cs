@@ -25,7 +25,7 @@ namespace SheetSync
 
         public object Execute()
         {
-            SheetSync.GlobalCCSettings gSettings = CCLogic.GetGlobalSettings();
+            SheetSync.SheetSyncGlobalSettings gSettings = CCLogic.GetGlobalSettings();
 
             object generated = null;
             

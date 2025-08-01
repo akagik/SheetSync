@@ -4,7 +4,6 @@ using System.Linq;
 using System.Collections;
 using UnityEngine;
 using SheetSync;
-using GlobalCCSettings = SheetSync.GlobalCCSettings;
 
 namespace SheetSync
 {
@@ -31,7 +30,7 @@ namespace SheetSync
         private List<ConvertSettingItemViewModel> _items;
         private string _searchText = "";
         private bool _isProcessing;
-        private GlobalCCSettings _globalSettings;
+        private SheetSyncGlobalSettings _globalSettings;
         
         /// <summary>
         /// すべての ConvertSetting アイテムの ViewModel リスト

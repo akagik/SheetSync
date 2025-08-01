@@ -19,9 +19,9 @@
         /// グローバル設定ファイルはプロジェクト内にただ１つだけ配置し、その場所は問わない。
         /// 設定ファイルは存在しない場合はデフォルトの設定を利用する。
         /// </summary>
-        public static SheetSync.GlobalCCSettings GetGlobalSettings()
+        public static SheetSync.SheetSyncGlobalSettings GetGlobalSettings()
         {
-            string[] settingGUIDArray = AssetDatabase.FindAssets("t:" + typeof(SheetSync.GlobalCCSettings));
+            string[] settingGUIDArray = AssetDatabase.FindAssets("t:" + typeof(SheetSync.SheetSyncGlobalSettings));
 
             if (settingGUIDArray.Length >= 2)
             {
@@ -30,11 +30,11 @@
             // グローバルな設定ファイルが見つからない場合はその場で一時的に生成する.
             else if (settingGUIDArray.Length == 0)
             {
-                return ScriptableObject.CreateInstance<SheetSync.GlobalCCSettings>();
+                return ScriptableObject.CreateInstance<SheetSync.SheetSyncGlobalSettings>();
             }
 
             string path = AssetDatabase.GUIDToAssetPath(settingGUIDArray[0]);
-            return AssetDatabase.LoadAssetAtPath<SheetSync.GlobalCCSettings>(path);
+            return AssetDatabase.LoadAssetAtPath<SheetSync.SheetSyncGlobalSettings>(path);
         }
 
         /// <summary>

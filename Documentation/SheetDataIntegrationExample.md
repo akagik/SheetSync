@@ -8,7 +8,7 @@
 
 ### 1. データの読み込み
 - Google Sheets からデータを読み込み、`ExtendedSheetData` インスタンスを作成
-- ヘッダー行の自動検出またはGlobalCCSettings からの取得
+- ヘッダー行の自動検出またはSheetSyncGlobalSettings からの取得
 - ヘッダー行に基づいたデータビューの作成
 
 ### 2. 変更追跡と差分管理
