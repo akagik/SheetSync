@@ -159,11 +159,11 @@ namespace SheetSync.Api
         #region 更新系API
 
         /// <summary>
-        /// 単一行の更新
+        /// 単一行の更新（非同期版）
         /// </summary>
         /// <param name="requestJson">UpdateRequest構造のJSON文字列</param>
         /// <returns>JSON形式のApiResponse</returns>
-        public static string UpdateRow(string requestJson)
+        public static async Task<string> UpdateRowAsync(string requestJson)
         {
             try
             {
@@ -203,12 +203,12 @@ namespace SheetSync.Api
                         
                         var authService = GoogleServiceAccountAuth.GetAuthenticatedService();
                         
-                        // 同期的に実行（メインスレッドで実行）
-                        actualSheetName = GoogleSheetsUtility.GetSheetNameFromGidAsync(
+                        // 非同期で実行
+                        actualSheetName = await GoogleSheetsUtility.GetSheetNameFromGidAsync(
                             authService, 
                             request.spreadsheetId, 
                             request.gid
-                        ).GetAwaiter().GetResult();
+                        );
                         
                         if (string.IsNullOrEmpty(actualSheetName))
                         {
@@ -227,15 +227,15 @@ namespace SheetSync.Api
                 // 同期的に実行（メインスレッドで実行）
                 try
                 {
-                    // 非同期メソッドをGetAwaiter().GetResult()で同期的に実行
-                    bool result = service.UpdateRowAsync(
+                    // 非同期メソッドをawaitで実行
+                    bool result = await service.UpdateRowAsync(
                         request.spreadsheetId,
                         actualSheetName,
                         request.keyColumn,
                         request.keyValue,
                         request.updateData,
                         verbose: true
-                    ).GetAwaiter().GetResult();
+                    );
                     
                     return JsonConvert.SerializeObject(ApiResponse<bool>.Success(result));
                 }
@@ -255,11 +255,11 @@ namespace SheetSync.Api
         }
 
         /// <summary>
-        /// 複数行の一括更新
+        /// 複数行の一括更新（非同期版）
         /// </summary>
         /// <param name="requestJson">BatchUpdateRequest構造のJSON文字列</param>
         /// <returns>JSON形式のApiResponse</returns>
-        public static string UpdateMultipleRows(string requestJson)
+        public static async Task<string> UpdateMultipleRowsAsync(string requestJson)
         {
             try
             {
@@ -303,12 +303,12 @@ namespace SheetSync.Api
                         
                         var authService = GoogleServiceAccountAuth.GetAuthenticatedService();
                         
-                        // 同期的に実行（メインスレッドで実行）
-                        actualSheetName = GoogleSheetsUtility.GetSheetNameFromGidAsync(
+                        // 非同期で実行
+                        actualSheetName = await GoogleSheetsUtility.GetSheetNameFromGidAsync(
                             authService, 
                             request.spreadsheetId, 
                             request.gid
-                        ).GetAwaiter().GetResult();
+                        );
                         
                         if (string.IsNullOrEmpty(actualSheetName))
                         {
@@ -324,19 +324,18 @@ namespace SheetSync.Api
                 // サービスインスタンスを作成
                 var service = new SheetUpdateServiceAccountService();
                 
-                // 非同期メソッドを同期的に実行
-                var task = Task.Run(async () => await service.UpdateMultipleRowsAsync(
-                    request.spreadsheetId,
-                    actualSheetName,
-                    request.keyColumn,
-                    request.updates,
-                    verbose: true
-                ));
-                
-                // タイムアウト付きで待機（60秒）
-                if (task.Wait(TimeSpan.FromSeconds(60)))
+                // 同期的に実行（メインスレッドで実行）
+                try
                 {
-                    bool result = task.Result;
+                    // 非同期メソッドをawaitで実行
+                    bool result = await service.UpdateMultipleRowsAsync(
+                        request.spreadsheetId,
+                        actualSheetName,
+                        request.keyColumn,
+                        request.updates,
+                        verbose: true
+                    );
+                    
                     var response = new
                     {
                         success = result,
@@ -344,10 +343,71 @@ namespace SheetSync.Api
                     };
                     return JsonConvert.SerializeObject(ApiResponse<object>.Success(response));
                 }
-                else
+                catch (AggregateException ae)
+                {
+                    // 非同期タスクの例外を展開
+                    var innerException = ae.InnerException ?? ae;
+                    Debug.LogException(innerException);
+                    return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Batch update failed", innerException.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+                return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Batch update failed", ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// 複数行の一括更新（同期版 - MCP用）
+        /// </summary>
+        /// <param name="requestJson">BatchUpdateRequest構造のJSON文字列</param>
+        /// <returns>JSON形式のApiResponse</returns>
+        public static string UpdateMultipleRows(string requestJson)
+        {
+            try
+            {
+                // Unityのメインスレッドで非同期メソッドを実行
+                string result = null;
+                Exception error = null;
+                bool completed = false;
+                
+                // EditorApplication.delayCallを使用してメインスレッドで実行
+                UnityEditor.EditorApplication.delayCall += async () =>
+                {
+                    try
+                    {
+                        result = await UpdateMultipleRowsAsync(requestJson);
+                    }
+                    catch (Exception ex)
+                    {
+                        error = ex;
+                    }
+                    finally
+                    {
+                        completed = true;
+                    }
+                };
+                
+                // 完了を待つ（タイムアウト付き）
+                var startTime = DateTime.Now;
+                while (!completed && (DateTime.Now - startTime).TotalSeconds < 30)
+                {
+                    System.Threading.Thread.Sleep(10);
+                    UnityEditor.EditorApplication.Step();
+                }
+                
+                if (error != null)
+                {
+                    throw error;
+                }
+                
+                if (!completed)
                 {
                     return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Operation timeout"));
                 }
+                
+                return result;
             }
             catch (Exception ex)
             {
@@ -427,8 +487,9 @@ namespace SheetSync.Api
                 {
                     new { name = "InitializeAuth", description = "サービスアカウント認証の初期化" },
                     new { name = "CheckAuthStatus", description = "認証状態の確認" },
-                    new { name = "UpdateRow", description = "単一行の更新" },
+                    new { name = "UpdateRowAsync", description = "単一行の更新（非同期版）" },
                     new { name = "UpdateMultipleRows", description = "複数行の一括更新" },
+                    new { name = "UpdateMultipleRowsAsync", description = "複数行の一括更新（非同期版）" },
                     new { name = "GetSampleUpdateRequest", description = "サンプルリクエストの取得" },
                     new { name = "GetSampleBatchUpdateRequest", description = "サンプルバッチリクエストの取得" }
                 },

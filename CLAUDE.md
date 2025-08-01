@@ -258,6 +258,16 @@ Unityプロジェクトのアセット
 
 This project has MCP Unity integration enabled, allowing AI assistants to interact with Unity Editor.
 
+# CLAUDE.md Template for invoke_static_method Tool
+
+Add the following content to your project's CLAUDE.md file to enable AI assistants to use the invoke_static_method tool effectively.
+
+---
+
+## MCP Unity Integration
+
+This project has MCP Unity integration enabled, allowing AI assistants to interact with Unity Editor.
+
 ### Invoking Static Methods
 
 You can call any static method in Unity using the `invoke_static_method` tool. This is useful for:
@@ -266,6 +276,7 @@ You can call any static method in Unity using the `invoke_static_method` tool. T
 - Creating GameObjects programmatically
 - Modifying project settings
 - Running custom utility methods
+- Executing async operations (Task/UniTask methods)
 
 #### Basic Usage
 
@@ -326,6 +337,16 @@ You can call any static method in Unity using the `invoke_static_method` tool. T
 - **Enums**: Use string value (e.g., "Cube" for PrimitiveType.Cube)
 - **GameObject**: Use the GameObject's name as a string
 
+#### Async Method Support
+
+The tool fully supports async methods:
+
+- Methods returning `Task` (no return value)
+- Methods returning `Task<T>` (with return value)
+- Methods returning `UniTask` or `UniTask<T>`
+
+Async methods are automatically awaited and their results are returned in the response.
+
 #### Project-Specific Static Methods
 
 [List any custom static utility methods in your project that might be useful]
@@ -338,6 +359,7 @@ public static class GameUtils
 {
     public static void ResetGameState() { /* ... */ }
     public static void LoadLevel(string levelName) { /* ... */ }
+    public static async Task<bool> SaveGameAsync(string saveName) { /* ... */ }
 }
 ```
 
@@ -351,6 +373,16 @@ You can call them with:
 }
 ```
 
+For async methods:
+
+```json
+{
+  "typeName": "GameUtils",
+  "methodName": "SaveGameAsync",
+  "parameters": [{"type": "string", "value": "checkpoint1"}]
+}
+```
+
 ### Important Notes
 
 1. **Type Names**: Always use fully qualified type names including namespace (e.g., `UnityEngine.Debug` not just `Debug`)
@@ -358,6 +390,7 @@ You can call them with:
 3. **Return Values**: Methods that return values will include the result in the response
 4. **Error Handling**: Check the response for error messages if a method call fails
 5. **Unity Main Thread**: All methods are executed on Unity's main thread
+6. **Async Support**: Async methods are automatically awaited and their results are returned
 
 ### Common Tasks Using invoke_static_method
 
@@ -425,6 +458,37 @@ For methods that require complex Unity types:
 }
 ```
 
+#### Async Method Examples
+
+1. **Async method without return value**:
+
+```json
+{
+  "typeName": "MyNamespace.DataManager",
+  "methodName": "LoadDataAsync",
+  "parameters": [{"type": "string", "value": "config.json"}]
+}
+```
+
+2. **Async method with return value**:
+
+```json
+{
+  "typeName": "MyNamespace.NetworkService",
+  "methodName": "FetchUserDataAsync",
+  "parameters": [{"type": "int", "value": 12345}]
+}
+```
+
+The response will include the awaited result:
+
+```
+Successfully invoked async method MyNamespace.NetworkService.FetchUserDataAsync
+
+Return value: {"id": 12345, "name": "Player1", "level": 10}
+Return type: System.Threading.Tasks.Task`1[UserData]
+```
+
 #### Chaining Operations
 
 While you cannot chain method calls directly, you can use multiple tool invocations:
@@ -464,6 +528,7 @@ If a method call fails:
 - Cannot access private or internal methods
 - Complex object parameters may need to be passed as simpler types
 - Some Unity Editor operations may require specific editor states
+- Async methods will block until completion (be cautious with long-running operations)
 
 ### Security Considerations
 
@@ -472,6 +537,10 @@ This tool can execute any public static method. In production:
 - Consider restricting which types/methods can be called
 - Log all method invocations for audit purposes
 - Be cautious with methods that modify project files or settings
+- Be aware that async methods will run to completion even if they take a long time
+- Avoid calling methods that could cause infinite loops or deadlocks
+
+Docs/GUIDE_InvokeStaticMethod.md
 
 # 📘 コーディングルール：責務の分離と共通処理の抽出について
 
