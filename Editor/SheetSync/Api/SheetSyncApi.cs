@@ -202,21 +202,17 @@ namespace SheetSync.Api
                         }
                         
                         var authService = GoogleServiceAccountAuth.GetAuthenticatedService();
-                        var sheetNameTask = Task.Run(async () => 
-                            await GoogleSheetsUtility.GetSheetNameFromGidAsync(authService, request.spreadsheetId, request.gid)
-                        );
                         
-                        if (sheetNameTask.Wait(TimeSpan.FromSeconds(10)))
+                        // 同期的に実行（メインスレッドで実行）
+                        actualSheetName = GoogleSheetsUtility.GetSheetNameFromGidAsync(
+                            authService, 
+                            request.spreadsheetId, 
+                            request.gid
+                        ).GetAwaiter().GetResult();
+                        
+                        if (string.IsNullOrEmpty(actualSheetName))
                         {
-                            actualSheetName = sheetNameTask.Result;
-                            if (string.IsNullOrEmpty(actualSheetName))
-                            {
-                                return JsonConvert.SerializeObject(ApiResponse<bool>.Error($"Sheet with GID '{request.gid}' not found"));
-                            }
-                        }
-                        else
-                        {
-                            return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Timeout while getting sheet name from GID"));
+                            return JsonConvert.SerializeObject(ApiResponse<bool>.Error($"Sheet with GID '{request.gid}' not found"));
                         }
                     }
                     catch (Exception ex)
@@ -228,25 +224,27 @@ namespace SheetSync.Api
                 // サービスインスタンスを作成
                 var service = new SheetUpdateServiceAccountService();
                 
-                // 非同期メソッドを同期的に実行
-                var task = Task.Run(async () => await service.UpdateRowAsync(
-                    request.spreadsheetId,
-                    actualSheetName,
-                    request.keyColumn,
-                    request.keyValue,
-                    request.updateData,
-                    verbose: true
-                ));
-                
-                // タイムアウト付きで待機（30秒）
-                if (task.Wait(TimeSpan.FromSeconds(30)))
+                // 同期的に実行（メインスレッドで実行）
+                try
                 {
-                    bool result = task.Result;
+                    // 非同期メソッドをGetAwaiter().GetResult()で同期的に実行
+                    bool result = service.UpdateRowAsync(
+                        request.spreadsheetId,
+                        actualSheetName,
+                        request.keyColumn,
+                        request.keyValue,
+                        request.updateData,
+                        verbose: true
+                    ).GetAwaiter().GetResult();
+                    
                     return JsonConvert.SerializeObject(ApiResponse<bool>.Success(result));
                 }
-                else
+                catch (AggregateException ae)
                 {
-                    return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Operation timeout"));
+                    // 非同期タスクの例外を展開
+                    var innerException = ae.InnerException ?? ae;
+                    Debug.LogException(innerException);
+                    return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Update failed", innerException.Message));
                 }
             }
             catch (Exception ex)
@@ -304,21 +302,17 @@ namespace SheetSync.Api
                         }
                         
                         var authService = GoogleServiceAccountAuth.GetAuthenticatedService();
-                        var sheetNameTask = Task.Run(async () => 
-                            await GoogleSheetsUtility.GetSheetNameFromGidAsync(authService, request.spreadsheetId, request.gid)
-                        );
                         
-                        if (sheetNameTask.Wait(TimeSpan.FromSeconds(10)))
+                        // 同期的に実行（メインスレッドで実行）
+                        actualSheetName = GoogleSheetsUtility.GetSheetNameFromGidAsync(
+                            authService, 
+                            request.spreadsheetId, 
+                            request.gid
+                        ).GetAwaiter().GetResult();
+                        
+                        if (string.IsNullOrEmpty(actualSheetName))
                         {
-                            actualSheetName = sheetNameTask.Result;
-                            if (string.IsNullOrEmpty(actualSheetName))
-                            {
-                                return JsonConvert.SerializeObject(ApiResponse<bool>.Error($"Sheet with GID '{request.gid}' not found"));
-                            }
-                        }
-                        else
-                        {
-                            return JsonConvert.SerializeObject(ApiResponse<bool>.Error("Timeout while getting sheet name from GID"));
+                            return JsonConvert.SerializeObject(ApiResponse<bool>.Error($"Sheet with GID '{request.gid}' not found"));
                         }
                     }
                     catch (Exception ex)
