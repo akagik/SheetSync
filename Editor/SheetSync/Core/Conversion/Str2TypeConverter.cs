@@ -89,6 +89,8 @@
                     || (sValue[0] == '\'' && sValue[sValue.Length - 1] == '\''))
                 {
                     value = sValue.Substring(1, sValue.Length - 2);
+                    // 改行コードを \n に統一（CsvConverter との互換性のため）
+                    value = ((string)value).Replace("\r\n", "\n");
                 }
             }
             else if (t == typeof(Vector2))

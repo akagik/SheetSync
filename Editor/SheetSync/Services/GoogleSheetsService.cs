@@ -221,8 +221,11 @@ namespace SheetSync
                         {
                             string cellValue = cell?.ToString() ?? "";
                             
+                            // 改行コードを \n に統一（CsvConverter との互換性のため）
+                            cellValue = cellValue.Replace("\r\n", "\n");
+                            
                             // CSV エスケープ処理
-                            if (cellValue.Contains("\"") || cellValue.Contains(",") || cellValue.Contains("\n") || cellValue.Contains("\r"))
+                            if (cellValue.Contains("\"") || cellValue.Contains(",") || cellValue.Contains("\n"))
                             {
                                 cellValue = "\"" + cellValue.Replace("\"", "\"\"") + "\"";
                             }
