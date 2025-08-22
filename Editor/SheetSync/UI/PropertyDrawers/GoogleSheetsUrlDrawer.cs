@@ -97,6 +97,9 @@ namespace SheetSync.Editor
                 return;
             }
             
+            // デバッグログを追加
+            Debug.Log($"[URL Helper] 入力URL: {urlInput}");
+            
             // URLの妥当性チェック
             if (!GoogleSheetsUrlParser.IsValidGoogleSheetsUrl(urlInput))
             {
@@ -110,18 +113,30 @@ namespace SheetSync.Editor
             var sheetInfo = GoogleSheetsUrlParser.ParseUrl(urlInput);
             if (sheetInfo != null && sheetInfo.IsValid)
             {
+                // 更新前の値をログ出力
+                Debug.Log($"[URL Helper] 更新前 - SheetID: {setting.sheetID}, GID: {setting.gid}");
+                
                 Undo.RecordObject(setting, "Apply Google Sheets URL");
                 
                 setting.sheetID = sheetInfo.SheetId;
                 setting.gid = sheetInfo.Gid;
+                setting.useGSPlugin = true; // Google Sheets プラグインを有効化も追加
                 
                 EditorUtility.SetDirty(setting);
                 
-                // 成功メッセージ
-                Debug.Log($"Google Sheets設定を適用しました - SheetID: {sheetInfo.SheetId}, GID: {sheetInfo.Gid}");
+                // アセットデータベースを強制的に保存
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+                
+                // 成功メッセージと更新後の値を表示
+                Debug.Log($"[URL Helper] 更新後 - SheetID: {setting.sheetID}, GID: {setting.gid}");
+                Debug.Log($"[URL Helper] Google Sheets設定を適用しました - SheetID: {sheetInfo.SheetId}, GID: {sheetInfo.Gid}");
                 
                 // URL入力欄をクリア
                 urlInput = "";
+                
+                // ValueEntry を更新（Odin Inspector固有）
+                this.ValueEntry.ApplyChanges();
             }
             else
             {
@@ -211,6 +226,9 @@ namespace SheetSync.Editor
                 return;
             }
             
+            // デバッグログを追加
+            Debug.Log($"[URL Helper] 入力URL: {urlInput}");
+            
             // URLの妥当性チェック
             if (!GoogleSheetsUrlParser.IsValidGoogleSheetsUrl(urlInput))
             {
@@ -224,6 +242,9 @@ namespace SheetSync.Editor
             var sheetInfo = GoogleSheetsUrlParser.ParseUrl(urlInput);
             if (sheetInfo != null && sheetInfo.IsValid)
             {
+                // 更新前の値をログ出力
+                Debug.Log($"[URL Helper] 更新前 - SheetID: {setting.sheetID}, GID: {setting.gid}");
+                
                 Undo.RecordObject(setting, "Apply Google Sheets URL");
                 
                 setting.sheetID = sheetInfo.SheetId;
@@ -232,8 +253,13 @@ namespace SheetSync.Editor
                 
                 EditorUtility.SetDirty(setting);
                 
-                // 成功メッセージ
-                Debug.Log($"Google Sheets設定を適用しました - SheetID: {sheetInfo.SheetId}, GID: {sheetInfo.Gid}");
+                // アセットデータベースを強制的に保存
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+                
+                // 成功メッセージと更新後の値を表示
+                Debug.Log($"[URL Helper] 更新後 - SheetID: {setting.sheetID}, GID: {setting.gid}");
+                Debug.Log($"[URL Helper] Google Sheets設定を適用しました - SheetID: {sheetInfo.SheetId}, GID: {sheetInfo.Gid}");
                 
                 // URL入力欄をクリア
                 urlInput = "";

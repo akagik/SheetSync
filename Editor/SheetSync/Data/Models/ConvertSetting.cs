@@ -229,17 +229,8 @@ namespace SheetSync
         [PropertySpace(SpaceBefore = 10, SpaceAfter = 10)]
         private void ApplyGoogleSheetsUrl()
         {
-            // URLダイアログを表示
-            var urlDialog = GoogleSheetsUrlDialog.ShowDialog();
-            if (urlDialog != null && urlDialog.IsConfirmed)
-            {
-                UnityEditor.Undo.RecordObject(this, "Apply Google Sheets URL");
-                this.sheetID = urlDialog.SheetId;
-                this.gid = urlDialog.Gid;
-                UnityEditor.EditorUtility.SetDirty(this);
-                
-                Debug.Log($"Google Sheets設定を適用しました - SheetID: {urlDialog.SheetId}, GID: {urlDialog.Gid}");
-            }
+            // URLダイアログを表示（ConvertSetting自身を渡す）
+            GoogleSheetsUrlDialog.ShowDialog(this);
         }
 #endif
 
