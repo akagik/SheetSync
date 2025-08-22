@@ -225,9 +225,14 @@ namespace SheetSync
                             cellValue = cellValue.Replace("\r\n", "\n");
                             
                             // CSV エスケープ処理
-                            if (cellValue.Contains("\"") || cellValue.Contains(",") || cellValue.Contains("\n"))
+                            if (cellValue.Contains("\"") || cellValue.Contains(",") || cellValue.Contains("\n") || cellValue.Contains("\r"))
                             {
-                                cellValue = "\"" + cellValue.Replace("\"", "\"\"") + "\"";
+                                // ダブルクォートをエスケープ
+                                cellValue = cellValue.Replace("\"", "\"\"");
+                                // 改行を\\nにエスケープ（CSVフォーマットのため）
+                                cellValue = cellValue.Replace("\n", "\\n");
+                                // 全体をダブルクォートで囲む
+                                cellValue = "\"" + cellValue + "\"";
                             }
                             
                             csvRow.Add(cellValue);

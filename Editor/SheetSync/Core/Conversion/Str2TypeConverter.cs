@@ -89,6 +89,8 @@
                     || (sValue[0] == '\'' && sValue[sValue.Length - 1] == '\''))
                 {
                     value = sValue.Substring(1, sValue.Length - 2);
+                    // エスケープされた改行を実際の改行に戻す
+                    value = ((string)value).Replace("\\n", "\n");
                     // 改行コードを \n に統一（CsvConverter との互換性のため）
                     value = ((string)value).Replace("\r\n", "\n");
                 }
