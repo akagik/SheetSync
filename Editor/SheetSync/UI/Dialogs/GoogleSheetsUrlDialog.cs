@@ -169,7 +169,7 @@ namespace SheetSync
                     previewGid = sheetInfo.Gid;
                     hasValidPreview = true;
                     
-                    Debug.Log($"[URL Preview] Sheet ID: {previewSheetId}, GID: {previewGid}");
+                    // Debug.Log($"[URL Preview] Sheet ID: {previewSheetId}, GID: {previewGid}");
                 }
                 else
                 {
@@ -210,13 +210,13 @@ namespace SheetSync
             Undo.RecordObject(targetSetting, "Apply Google Sheets URL");
             
             // 値を更新
-            Debug.Log($"[URL Dialog] 更新前 - SheetID: {targetSetting.sheetID}, GID: {targetSetting.gid}");
+            // Debug.Log($"[URL Dialog] 更新前 - SheetID: {targetSetting.sheetID}, GID: {targetSetting.gid}");
             
             targetSetting.sheetID = previewSheetId;
             targetSetting.gid = previewGid;
             targetSetting.useGSPlugin = true; // Google Sheets プラグインを有効化
             
-            Debug.Log($"[URL Dialog] 更新後 - SheetID: {targetSetting.sheetID}, GID: {targetSetting.gid}");
+            // Debug.Log($"[URL Dialog] 更新後 - SheetID: {targetSetting.sheetID}, GID: {targetSetting.gid}");
             
             // 変更をマーク
             EditorUtility.SetDirty(targetSetting);
@@ -225,7 +225,7 @@ namespace SheetSync
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             
-            Debug.Log($"[URL Dialog] Google Sheets設定を適用しました - SheetID: {previewSheetId}, GID: {previewGid}");
+            // Debug.Log($"[URL Dialog] Google Sheets設定を適用しました - SheetID: {previewSheetId}, GID: {previewGid}");
             
             // ウィンドウを閉じる
             Close();
