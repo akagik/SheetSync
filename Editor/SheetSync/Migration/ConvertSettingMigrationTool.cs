@@ -28,49 +28,102 @@ namespace SheetSync
         private static bool ValidateMigrateConvertSetting()
         {
             // KoheiUtils.ConvertSetting 型のアセットが選択されている場合のみ有効
-            var selected = Selection.activeObject;
-            if (selected == null) return false;
+            if (Selection.objects == null || Selection.objects.Length == 0) return false;
             
-            var type = selected.GetType();
-            return type.FullName == "KoheiUtils.ConvertSetting";
+            // すべての選択オブジェクトが KoheiUtils.ConvertSetting であることを確認
+            foreach (var obj in Selection.objects)
+            {
+                if (obj == null) return false;
+                var type = obj.GetType();
+                if (type.FullName != "KoheiUtils.ConvertSetting") return false;
+            }
+            
+            return true;
         }
         
         [MenuItem("Assets/SheetSync/Migrate from KoheiUtils ConvertSetting")]
         private static void MigrateConvertSetting()
         {
-            var selected = Selection.activeObject;
-            if (selected == null) return;
+            var selectedObjects = Selection.objects;
+            if (selectedObjects == null || selectedObjects.Length == 0) return;
             
-            var originalPath = AssetDatabase.GetAssetPath(selected);
-            var directory = Path.GetDirectoryName(originalPath);
-            var originalName = Path.GetFileNameWithoutExtension(originalPath);
+            var totalCount = selectedObjects.Length;
+            var successCount = 0;
+            var failedPaths = new List<string>();
+            var newAssets = new List<SheetSync.ConvertSetting>();
             
-            // 新しいパスを生成（_SheetSync サフィックスを追加）
-            var newPath = Path.Combine(directory, $"{originalName}_SheetSync.asset");
+            // 進捗バーを表示
+            EditorUtility.DisplayProgressBar("Migration Progress", "Starting migration...", 0f);
             
-            // 変換実行
-            var success = MigrateConvertSettingAsset(selected, newPath);
-            
-            if (success)
+            try
             {
-                Debug.Log($"Successfully migrated: {originalPath} -> {newPath}");
-                EditorUtility.DisplayDialog("Migration Success", 
-                    $"ConvertSetting を SheetSync 版に変換しました。\n\n元: {originalPath}\n新: {newPath}", 
-                    "OK");
-                
-                // 新しいアセットを選択
-                var newAsset = AssetDatabase.LoadAssetAtPath<SheetSync.ConvertSetting>(newPath);
-                if (newAsset != null)
+                for (int i = 0; i < selectedObjects.Length; i++)
                 {
-                    Selection.activeObject = newAsset;
-                    EditorGUIUtility.PingObject(newAsset);
+                    var selected = selectedObjects[i];
+                    if (selected == null) continue;
+                    
+                    var originalPath = AssetDatabase.GetAssetPath(selected);
+                    var directory = Path.GetDirectoryName(originalPath);
+                    var originalName = Path.GetFileNameWithoutExtension(originalPath);
+                    
+                    // 進捗バーを更新
+                    var progress = (float)i / totalCount;
+                    EditorUtility.DisplayProgressBar("Migration Progress", 
+                        $"Processing: {originalName} ({i + 1}/{totalCount})", 
+                        progress);
+                    
+                    // 新しいパスを生成（_SheetSync サフィックスを追加）
+                    var newPath = Path.Combine(directory, $"{originalName}_SheetSync.asset");
+                    
+                    // 変換実行
+                    var success = MigrateConvertSettingAsset(selected, newPath);
+                    
+                    if (success)
+                    {
+                        successCount++;
+                        Debug.Log($"Successfully migrated: {originalPath} -> {newPath}");
+                        
+                        // 新しいアセットを記録
+                        var newAsset = AssetDatabase.LoadAssetAtPath<SheetSync.ConvertSetting>(newPath);
+                        if (newAsset != null)
+                        {
+                            newAssets.Add(newAsset);
+                        }
+                    }
+                    else
+                    {
+                        failedPaths.Add(originalPath);
+                        Debug.LogError($"Failed to migrate: {originalPath}");
+                    }
                 }
             }
-            else
+            finally
             {
-                EditorUtility.DisplayDialog("Migration Failed", 
-                    "変換に失敗しました。詳細はコンソールを確認してください。", 
-                    "OK");
+                // 進捗バーを閉じる
+                EditorUtility.ClearProgressBar();
+            }
+            
+            // 結果を表示
+            var message = $"移行完了\n\n成功: {successCount}/{totalCount}";
+            if (failedPaths.Count > 0)
+            {
+                message += $"\n\n失敗したファイル:\n";
+                foreach (var path in failedPaths)
+                {
+                    message += $"• {path}\n";
+                }
+            }
+            
+            EditorUtility.DisplayDialog("Migration Result", message, "OK");
+            
+            // 新しいアセットを選択
+            if (newAssets.Count > 0)
+            {
+                Selection.objects = newAssets.ToArray();
+                if (newAssets.Count == 1)
+                {
+                    EditorGUIUtility.PingObject(newAssets[0]);
+                }
             }
         }
         
@@ -78,49 +131,102 @@ namespace SheetSync
         private static bool ValidateMigrateSheetSyncGlobalSettings()
         {
             // KoheiUtils.GlobalCCSettings 型のアセットが選択されている場合のみ有効
-            var selected = Selection.activeObject;
-            if (selected == null) return false;
+            if (Selection.objects == null || Selection.objects.Length == 0) return false;
             
-            var type = selected.GetType();
-            return type.FullName == "KoheiUtils.GlobalCCSettings";
+            // すべての選択オブジェクトが KoheiUtils.GlobalCCSettings であることを確認
+            foreach (var obj in Selection.objects)
+            {
+                if (obj == null) return false;
+                var type = obj.GetType();
+                if (type.FullName != "KoheiUtils.GlobalCCSettings") return false;
+            }
+            
+            return true;
         }
         
         [MenuItem("Assets/SheetSync/Migrate from KoheiUtils GlobalCCSettings")]
         private static void MigrateSheetSyncGlobalSettings()
         {
-            var selected = Selection.activeObject;
-            if (selected == null) return;
+            var selectedObjects = Selection.objects;
+            if (selectedObjects == null || selectedObjects.Length == 0) return;
             
-            var originalPath = AssetDatabase.GetAssetPath(selected);
-            var directory = Path.GetDirectoryName(originalPath);
-            var originalName = Path.GetFileNameWithoutExtension(originalPath);
+            var totalCount = selectedObjects.Length;
+            var successCount = 0;
+            var failedPaths = new List<string>();
+            var newAssets = new List<SheetSync.SheetSyncGlobalSettings>();
             
-            // 新しいパスを生成（_SheetSync サフィックスを追加）
-            var newPath = Path.Combine(directory, $"{originalName}_SheetSync.asset");
+            // 進捗バーを表示
+            EditorUtility.DisplayProgressBar("Migration Progress", "Starting migration...", 0f);
             
-            // 変換実行
-            var success = MigrateSheetSyncGlobalSettingsAsset(selected, newPath);
-            
-            if (success)
+            try
             {
-                Debug.Log($"Successfully migrated: {originalPath} -> {newPath}");
-                EditorUtility.DisplayDialog("Migration Success", 
-                    $"GlobalCCSettings を SheetSync 版に変換しました。\n\n元: {originalPath}\n新: {newPath}", 
-                    "OK");
-                
-                // 新しいアセットを選択
-                var newAsset = AssetDatabase.LoadAssetAtPath<SheetSync.SheetSyncGlobalSettings>(newPath);
-                if (newAsset != null)
+                for (int i = 0; i < selectedObjects.Length; i++)
                 {
-                    Selection.activeObject = newAsset;
-                    EditorGUIUtility.PingObject(newAsset);
+                    var selected = selectedObjects[i];
+                    if (selected == null) continue;
+                    
+                    var originalPath = AssetDatabase.GetAssetPath(selected);
+                    var directory = Path.GetDirectoryName(originalPath);
+                    var originalName = Path.GetFileNameWithoutExtension(originalPath);
+                    
+                    // 進捗バーを更新
+                    var progress = (float)i / totalCount;
+                    EditorUtility.DisplayProgressBar("Migration Progress", 
+                        $"Processing: {originalName} ({i + 1}/{totalCount})", 
+                        progress);
+                    
+                    // 新しいパスを生成（_SheetSync サフィックスを追加）
+                    var newPath = Path.Combine(directory, $"{originalName}_SheetSync.asset");
+                    
+                    // 変換実行
+                    var success = MigrateSheetSyncGlobalSettingsAsset(selected, newPath);
+                    
+                    if (success)
+                    {
+                        successCount++;
+                        Debug.Log($"Successfully migrated: {originalPath} -> {newPath}");
+                        
+                        // 新しいアセットを記録
+                        var newAsset = AssetDatabase.LoadAssetAtPath<SheetSync.SheetSyncGlobalSettings>(newPath);
+                        if (newAsset != null)
+                        {
+                            newAssets.Add(newAsset);
+                        }
+                    }
+                    else
+                    {
+                        failedPaths.Add(originalPath);
+                        Debug.LogError($"Failed to migrate: {originalPath}");
+                    }
                 }
             }
-            else
+            finally
             {
-                EditorUtility.DisplayDialog("Migration Failed", 
-                    "変換に失敗しました。詳細はコンソールを確認してください。", 
-                    "OK");
+                // 進捗バーを閉じる
+                EditorUtility.ClearProgressBar();
+            }
+            
+            // 結果を表示
+            var message = $"移行完了\n\n成功: {successCount}/{totalCount}";
+            if (failedPaths.Count > 0)
+            {
+                message += $"\n\n失敗したファイル:\n";
+                foreach (var path in failedPaths)
+                {
+                    message += $"• {path}\n";
+                }
+            }
+            
+            EditorUtility.DisplayDialog("Migration Result", message, "OK");
+            
+            // 新しいアセットを選択
+            if (newAssets.Count > 0)
+            {
+                Selection.objects = newAssets.ToArray();
+                if (newAssets.Count == 1)
+                {
+                    EditorGUIUtility.PingObject(newAssets[0]);
+                }
             }
         }
         
