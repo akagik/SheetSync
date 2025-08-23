@@ -171,6 +171,21 @@ namespace SheetSync
                 CopySerializedProperty(sourceObj, targetObj, "verbose");
                 CopySerializedProperty(sourceObj, targetObj, "verboseBtn");
                 
+                // tempCsvPath と useDirectImport を強制的に true に設定
+                var tempCsvPathProp = targetObj.FindProperty("tempCsvPath");
+                if (tempCsvPathProp != null)
+                {
+                    tempCsvPathProp.boolValue = true;
+                    Debug.Log("tempCsvPath を true に設定しました");
+                }
+                
+                var useDirectImportProp = targetObj.FindProperty("useDirectImport");
+                if (useDirectImportProp != null)
+                {
+                    useDirectImportProp.boolValue = true;
+                    Debug.Log("useDirectImport を true に設定しました");
+                }
+                
                 // executeAfterImport は特別処理（ConvertSetting のリストなので変換が必要）
                 var executeAfterImportProp = sourceObj.FindProperty("executeAfterImport");
                 if (executeAfterImportProp != null && executeAfterImportProp.isArray)
