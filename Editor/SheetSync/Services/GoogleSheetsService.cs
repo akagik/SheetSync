@@ -14,6 +14,7 @@ using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using SheetSync.Services;
+using SheetSync.Services.Auth;
 #endif
 
 namespace SheetSync
@@ -37,6 +38,14 @@ namespace SheetSync
         /// 前回のダウンロードで発生したエラーの詳細
         /// </summary>
         public static string previousError { get; private set; }
+
+        private const string IMPORT_AUTH_MODE_PREF_KEY = "SheetSync_ImportAuthMode";
+
+        private enum DownloadAuthMode
+        {
+            ApiKey,
+            ServiceAccount
+        }
         
         /// <summary>
         /// Google スプレッドシートから CSV をダウンロードします
@@ -56,43 +65,10 @@ namespace SheetSync
                 yield break;
             }
             
-            // API キーを取得
-            string apiKey = EditorPrefs.GetString("SheetSync_ApiKey", "");
-            
-            if (string.IsNullOrEmpty(apiKey))
+            if (!TryGetOrPromptApiKey(out var apiKey, out var apiKeyError))
             {
-                int dialogResult = EditorUtility.DisplayDialogComplex(
-                    "API キーが必要です",
-                    "Google Sheets API を使用するには API キーが必要です。\n" +
-                    "API キーを入力してください。",
-                    "入力する",
-                    "キャンセル",
-                    "ヘルプ"
-                );
-                
-                if (dialogResult == 1) // キャンセル
-                {
-                    previousError = "APIキーの入力がキャンセルされました。";
-                    yield break;
-                }
-                else if (dialogResult == 2) // ヘルプ
-                {
-                    Application.OpenURL("https://console.cloud.google.com/apis/credentials");
-                    previousError = "ヘルプページを開きました。APIキーを取得してから再度お試しください。";
-                    yield break;
-                }
-                
-                // API キーを入力ダイアログで取得
-                apiKey = EditorInputDialog.Show("API キー入力", "Google API キーを入力してください:", "");
-                if (!string.IsNullOrEmpty(apiKey))
-                {
-                    EditorPrefs.SetString("SheetSync_ApiKey", apiKey);
-                }
-                else
-                {
-                    previousError = "APIキーが入力されませんでした。";
-                    yield break;
-                }
+                previousError = apiKeyError;
+                yield break;
             }
             
             // 非同期でダウンロード処理を実行
@@ -309,22 +285,86 @@ namespace SheetSync
             previousDownloadData = null;
             previousError = null;
             
-            // メインスレッドで API キーを取得
-            string apiKey = EditorPrefs.GetString("SheetSync_ApiKey", "");
-            if (string.IsNullOrEmpty(apiKey))
+            if (!EnsureImportAuthMode(out var authMode))
             {
-                previousError = "API キーが設定されていません。ファイルベースのダウンロードを先に実行して API キーを設定してください。";
-                Debug.LogError(previousError);
+                if (!string.IsNullOrEmpty(previousError))
+                {
+                    Debug.LogError(previousError);
+                }
                 yield break;
+            }
+
+            SheetsService service = null;
+            string credentialSummary = string.Empty;
+
+            if (authMode == DownloadAuthMode.ApiKey)
+            {
+                if (!TryGetOrPromptApiKey(out var apiKey, out var apiKeyError))
+                {
+                    previousError = apiKeyError;
+                    Debug.LogError(previousError);
+                    yield break;
+                }
+
+                service = new SheetsService(new BaseClientService.Initializer()
+                {
+                    ApiKey = apiKey,
+                    ApplicationName = "SheetSync"
+                });
+
+                credentialSummary = $"APIキー({MaskApiKey(apiKey)})";
+            }
+            else
+            {
+                if (!GoogleServiceAccountAuth.IsAuthenticated)
+                {
+                    var authorizeTask = GoogleServiceAccountAuth.AuthorizeAsync(verbose: true);
+                    while (!authorizeTask.IsCompleted)
+                    {
+                        yield return null;
+                    }
+
+                    if (authorizeTask.IsFaulted)
+                    {
+                        if (authorizeTask.Exception != null)
+                        {
+                            Debug.LogException(authorizeTask.Exception.GetBaseException());
+                        }
+
+                        previousError = "サービスアカウント認証に失敗しました。ログを確認してください。";
+                        Debug.LogError(previousError);
+                        yield break;
+                    }
+
+                    if (!authorizeTask.Result)
+                    {
+                        previousError = "サービスアカウント認証がキャンセルされました。";
+                        Debug.LogError(previousError);
+                        yield break;
+                    }
+                }
+
+                try
+                {
+                    service = GoogleServiceAccountAuth.GetAuthenticatedService();
+                    credentialSummary = "サービスアカウント認証";
+                }
+                catch (Exception e)
+                {
+                    previousError = $"サービスアカウントの初期化に失敗しました: {e.Message}";
+                    Debug.LogError(previousError);
+                    Debug.LogException(e);
+                    yield break;
+                }
             }
 
             if (verbose)
             {
-                Debug.Log($"[DownloadAsData] 開始 - SheetId: {sheet.SheetId}, Gid: {sheet.Gid}");
+                Debug.Log($"[DownloadAsData] 開始 - SheetId: {sheet.SheetId}, Gid: {sheet.Gid} ({credentialSummary})");
             }
-            
+
             // 非同期ダウンロード処理を実行
-            var downloadTask = DownloadAsDataInternalAsync(sheet, apiKey);
+            var downloadTask = DownloadAsDataInternalAsync(sheet, service, authMode, credentialSummary);
             
             while (!downloadTask.IsCompleted)
             {
@@ -334,7 +374,10 @@ namespace SheetSync
             if (downloadTask.IsFaulted)
             {
                 var baseException = downloadTask.Exception?.GetBaseException();
-                previousError = $"ダウンロードエラー: {baseException?.Message}";
+                if (string.IsNullOrEmpty(previousError))
+                {
+                    previousError = $"ダウンロードエラー: {baseException?.Message}";
+                }
                 Debug.LogError(previousError);
                 previousDownloadSuccess = false;
             }
@@ -351,17 +394,14 @@ namespace SheetSync
         /// <summary>
         /// Google スプレッドシートからデータを直接取得します（非同期版）
         /// </summary>
-        private static async Task<bool> DownloadAsDataInternalAsync(SheetDownloadInfo sheet, string apiKey)
+        private static async Task<bool> DownloadAsDataInternalAsync(
+            SheetDownloadInfo sheet,
+            SheetsService service,
+            DownloadAuthMode authMode,
+            string credentialSummary)
         {
             try
             {
-                // Google Sheets API のサービスを作成
-                var service = new SheetsService(new BaseClientService.Initializer()
-                {
-                    ApiKey = apiKey,
-                    ApplicationName = "SheetSync"
-                });
-                
                 // シート名を取得
                 var spreadsheet = await service.Spreadsheets.Get(sheet.SheetId).ExecuteAsync();
                 string sheetName = null;
@@ -403,7 +443,15 @@ namespace SheetSync
                 // Google API エラーの詳細を保存
                 if (e.HttpStatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
-                    previousError = $"Google API アクセスエラー: APIキーが無効か、Sheets APIが有効化されていません。\nAPIキー: {apiKey.Substring(0, Math.Min(8, apiKey.Length))}...";
+                    if (authMode == DownloadAuthMode.ApiKey)
+                    {
+                        previousError = "Google API アクセスエラー: APIキーが無効か、Sheets APIが有効化されていません。";
+                        previousError += $"\n{credentialSummary}";
+                    }
+                    else
+                    {
+                        previousError = "Google API アクセスエラー: サービスアカウントに対象スプレッドシートへのアクセス権限がありません。共有設定を確認してください。";
+                    }
                 }
                 else if (e.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
                 {
@@ -435,6 +483,101 @@ namespace SheetSync
         {
             EditorPrefs.DeleteKey("SheetSync_ApiKey");
             Debug.Log("API キーをクリアしました。");
+        }
+
+        /// <summary>
+        /// Import で使用する認証方法の選択をリセット
+        /// </summary>
+        [MenuItem("Tools/SheetSync/Google API/Clear Import Auth Mode")]
+        public static void ClearImportAuthMode()
+        {
+            EditorPrefs.DeleteKey(IMPORT_AUTH_MODE_PREF_KEY);
+            Debug.Log("Import の認証方法の選択をリセットしました。");
+        }
+
+        private static bool EnsureImportAuthMode(out DownloadAuthMode mode)
+        {
+            string storedValue = EditorPrefs.GetString(IMPORT_AUTH_MODE_PREF_KEY, string.Empty);
+            if (!string.IsNullOrEmpty(storedValue) && Enum.TryParse(storedValue, out mode))
+            {
+                return true;
+            }
+
+            int selection = EditorUtility.DisplayDialogComplex(
+                "Import の認証方法の選択",
+                "Open SheetSync の Import で使用する認証方法を選択してください。",
+                "API キー",
+                "キャンセル",
+                "サービスアカウント"
+            );
+
+            if (selection == 1)
+            {
+                previousError = "インポート処理がキャンセルされました。";
+                mode = default;
+                return false;
+            }
+
+            mode = selection == 2 ? DownloadAuthMode.ServiceAccount : DownloadAuthMode.ApiKey;
+            EditorPrefs.SetString(IMPORT_AUTH_MODE_PREF_KEY, mode.ToString());
+            return true;
+        }
+
+        private static bool TryGetOrPromptApiKey(out string apiKey, out string errorMessage)
+        {
+            apiKey = EditorPrefs.GetString("SheetSync_ApiKey", string.Empty);
+            errorMessage = null;
+
+            if (!string.IsNullOrEmpty(apiKey))
+            {
+                return true;
+            }
+
+            int dialogResult = EditorUtility.DisplayDialogComplex(
+                "API キーが必要です",
+                "Google Sheets API を使用するには API キーが必要です。\nAPI キーを入力してください。",
+                "入力する",
+                "キャンセル",
+                "ヘルプ"
+            );
+
+            if (dialogResult == 1)
+            {
+                errorMessage = "APIキーの入力がキャンセルされました。";
+                return false;
+            }
+
+            if (dialogResult == 2)
+            {
+                Application.OpenURL("https://console.cloud.google.com/apis/credentials");
+                errorMessage = "ヘルプページを開きました。APIキーを取得してから再度お試しください。";
+                return false;
+            }
+
+            apiKey = EditorInputDialog.Show("API キー入力", "Google API キーを入力してください:", string.Empty);
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                errorMessage = "APIキーが入力されませんでした。";
+                return false;
+            }
+
+            EditorPrefs.SetString("SheetSync_ApiKey", apiKey);
+            return true;
+        }
+
+        private static string MaskApiKey(string apiKey)
+        {
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                return "未設定";
+            }
+
+            if (apiKey.Length <= 8)
+            {
+                return apiKey;
+            }
+
+            return $"{apiKey.Substring(0, 4)}...{apiKey.Substring(apiKey.Length - 4)}";
         }
     }
 }
