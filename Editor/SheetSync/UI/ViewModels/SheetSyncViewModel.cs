@@ -59,17 +59,38 @@ namespace SheetSync
         }
         
         /// <summary>
-        /// 検索テキストでフィルタリングされたアイテムのコレクション
+        /// お気に入りに登録されたアイテム（検索・スクロールに関係なく常に表示）
+        /// </summary>
+        public IEnumerable<ConvertSettingItemViewModel> FavoriteItems
+        {
+            get
+            {
+                var favorites = FavoriteService.GetFavorites();
+                return _items.Where(vm => favorites.Contains(vm.Model.AssetPath));
+            }
+        }
+
+        /// <summary>
+        /// 検索テキストでフィルタリングされた非お気に入りアイテムのコレクション
         /// </summary>
         public IEnumerable<ConvertSettingItemViewModel> FilteredItems
         {
             get
             {
+                var favorites = FavoriteService.GetFavorites();
+                var nonFavorites = _items.Where(vm => !favorites.Contains(vm.Model.AssetPath));
+
                 if (string.IsNullOrEmpty(_searchText))
-                    return _items;
-                    
-                return _items.Where(vm => vm.Model.MatchesSearchText(_searchText));
+                    return nonFavorites;
+
+                return nonFavorites.Where(vm => vm.Model.MatchesSearchText(_searchText));
             }
+        }
+
+        public void ToggleFavorite(ConvertSettingItemViewModel itemViewModel)
+        {
+            FavoriteService.ToggleFavorite(itemViewModel.Model.AssetPath);
+            OnPropertyChanged();
         }
         
         // Commands

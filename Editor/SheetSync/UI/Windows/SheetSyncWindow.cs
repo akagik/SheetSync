@@ -27,11 +27,15 @@ namespace SheetSync
     {
         private SheetSyncViewModel _viewModel;
         private Vector2 _scrollPosition;
-        
+
         // 検索ボックス用スタイル
         private static GUIStyle _toolbarSearchField;
         private static GUIStyle _toolbarSearchFieldCancelButton;
         private static GUIStyle _toolbarSearchFieldCancelButtonEmpty;
+
+        // お気に入りアイコン
+        private static readonly string StarOn = "\u2605";
+        private static readonly string StarOff = "\u2606";
         
         /// <summary>
         /// SheetSync ウィンドウを開きます
@@ -110,13 +114,20 @@ namespace SheetSync
         /// </remarks>
         private void DrawMainContent()
         {
+            // お気に入り（固定表示、スクロール外）
+            foreach (var itemViewModel in _viewModel.FavoriteItems)
+            {
+                DrawSettingItem(itemViewModel);
+            }
+
+            // 通常アイテム（スクロール領域内）
             _scrollPosition = GUILayout.BeginScrollView(_scrollPosition);
-            
+
             foreach (var itemViewModel in _viewModel.FilteredItems)
             {
                 DrawSettingItem(itemViewModel);
             }
-            
+
             GUILayout.EndScrollView();
         }
         
@@ -131,7 +142,15 @@ namespace SheetSync
         private void DrawSettingItem(ConvertSettingItemViewModel itemViewModel)
         {
             GUILayout.BeginHorizontal("box");
-            
+
+            // お気に入りボタン
+            bool isFav = FavoriteService.IsFavorite(itemViewModel.Model.AssetPath);
+            if (GUILayout.Button(isFav ? StarOn : StarOff, "Label", GUILayout.Width(20)))
+            {
+                _viewModel.ToggleFavorite(itemViewModel);
+                GUIUtility.ExitGUI();
+            }
+
             #if ODIN_INSPECTOR
             // 複製ボタン
             if (itemViewModel.DuplicateCommand.CanExecute())
