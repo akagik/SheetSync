@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using UnityEngine;
 using SheetSync;
 using KoheiUtils;
@@ -59,12 +60,19 @@ namespace SheetSync
         {
             if (string.IsNullOrEmpty(searchText))
                 return true;
-                
-            var searchLower = searchText.ToLowerInvariant();
 
-            return searchLower.IsSubsequence(DisplayName.ToLowerInvariant()) ||
-                   searchLower.IsSubsequence(Settings.className.ToLowerInvariant()) ||
-                   searchLower.IsSubsequence(Settings.sheetID.ToLowerInvariant());
+            // 大文字が1文字でも含まれていれば case-sensitive、すべて小文字なら case-insensitive
+            bool caseSensitive = searchText.Any(char.IsUpper);
+
+            string search = caseSensitive ? searchText : searchText.ToLowerInvariant();
+
+            string displayName = caseSensitive ? DisplayName : DisplayName.ToLowerInvariant();
+            string className = caseSensitive ? Settings.className : Settings.className.ToLowerInvariant();
+            string sheetID = caseSensitive ? Settings.sheetID : Settings.sheetID.ToLowerInvariant();
+
+            return search.IsSubsequence(displayName) ||
+                   search.IsSubsequence(className) ||
+                   search.IsSubsequence(sheetID);
         }
     }
 }
