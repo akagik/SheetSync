@@ -71,19 +71,19 @@ namespace SheetSync
         }
 
         /// <summary>
-        /// 検索テキストでフィルタリングされた非お気に入りアイテムのコレクション
+        /// フィルタリングされたアイテムのコレクション。
+        /// 検索中は全アイテム（お気に入り含む）から検索し、
+        /// 非検索時はお気に入りを除いた通常リストを返す。
         /// </summary>
         public IEnumerable<ConvertSettingItemViewModel> FilteredItems
         {
             get
             {
+                if (!string.IsNullOrEmpty(_searchText))
+                    return _items.Where(vm => vm.Model.MatchesSearchText(_searchText));
+
                 var favorites = FavoriteService.GetFavorites();
-                var nonFavorites = _items.Where(vm => !favorites.Contains(vm.Model.AssetPath));
-
-                if (string.IsNullOrEmpty(_searchText))
-                    return nonFavorites;
-
-                return nonFavorites.Where(vm => vm.Model.MatchesSearchText(_searchText));
+                return _items.Where(vm => !favorites.Contains(vm.Model.AssetPath));
             }
         }
 

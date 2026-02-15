@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.ShortcutManagement;
 using SheetSync;
 
 namespace SheetSync
@@ -36,7 +37,11 @@ namespace SheetSync
         // お気に入りアイコン
         private static readonly string StarOn = "\u2605";
         private static readonly string StarOff = "\u2606";
-        
+
+        // 検索フィールドのコントロール名
+        private const string SearchFieldControlName = "SheetSyncSearchField";
+        private bool _focusSearchField;
+
         /// <summary>
         /// SheetSync ウィンドウを開きます
         /// </summary>
@@ -44,6 +49,18 @@ namespace SheetSync
         public static void OpenWindow()
         {
             GetWindow<SheetSyncWindow>(false, "Sheet Sync", true).Show();
+        }
+
+        /// <summary>
+        /// ショートカットキーで SheetSync ウィンドウを開き、検索フィールドにフォーカスします。
+        /// デフォルト: Alt+S。Edit > Shortcuts > SheetSync で変更可能。
+        /// </summary>
+        [Shortcut("SheetSync/Open Window", KeyCode.S, ShortcutModifiers.Alt)]
+        private static void OpenWindowShortcut()
+        {
+            var window = GetWindow<SheetSyncWindow>(false, "Sheet Sync", true);
+            window._focusSearchField = true;
+            window.Show();
         }
         
         private void OnEnable()
@@ -77,12 +94,33 @@ namespace SheetSync
             
             // 検索ボックス
             DrawSearchField();
-            
+
+            // 検索フィールドで Enter → 先頭アイテムをインポート
+            if (Event.current.type == EventType.KeyDown
+                && Event.current.keyCode == KeyCode.Return
+                && GUI.GetNameOfFocusedControl() == SearchFieldControlName)
+            {
+                var target = System.Linq.Enumerable.FirstOrDefault(_viewModel.FilteredItems);
+                if (target != null && target.Model.UseGSPlugin)
+                {
+                    Event.current.Use();
+                    _viewModel.ExecuteImport(target);
+                    GUIUtility.ExitGUI();
+                }
+            }
+
             // メインコンテンツ
             DrawMainContent();
             
             // ボトムバー
             DrawBottomBar();
+
+            // ショートカットで開いた場合、検索フィールドにフォーカス
+            if (_focusSearchField && Event.current.type == EventType.Repaint)
+            {
+                EditorGUI.FocusTextInControl(SearchFieldControlName);
+                _focusSearchField = false;
+            }
         }
         
         /// <summary>
@@ -114,10 +152,13 @@ namespace SheetSync
         /// </remarks>
         private void DrawMainContent()
         {
-            // お気に入り（固定表示、スクロール外）
-            foreach (var itemViewModel in _viewModel.FavoriteItems)
+            // お気に入り（固定表示、スクロール外。検索中は非表示）
+            if (string.IsNullOrEmpty(_viewModel.SearchText))
             {
-                DrawSettingItem(itemViewModel);
+                foreach (var itemViewModel in _viewModel.FavoriteItems)
+                {
+                    DrawSettingItem(itemViewModel);
+                }
             }
 
             // 通常アイテム（スクロール領域内）
@@ -365,6 +406,7 @@ namespace SheetSync
             rect.x += position.width;
             rect.width = 14f;
             
+            GUI.SetNextControlName(SearchFieldControlName);
             text = EditorGUI.TextField(position, text, _toolbarSearchField);
             
             if (string.IsNullOrEmpty(text))
