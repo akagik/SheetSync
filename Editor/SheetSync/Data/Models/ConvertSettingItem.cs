@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using SheetSync;
+using KoheiUtils;
 
 namespace SheetSync
 {
@@ -60,12 +61,10 @@ namespace SheetSync
                 return true;
                 
             var searchLower = searchText.ToLowerInvariant();
-            var displayNameLower = DisplayName.ToLowerInvariant();
-            
-            // IsSubsequence拡張メソッドがKoheiUtilsにあるため、contains で代替
-            return displayNameLower.Contains(searchLower) ||
-                   Settings.className.ToLowerInvariant().Contains(searchLower) ||
-                   Settings.sheetID.ToLowerInvariant().Contains(searchLower);
+
+            return searchLower.IsSubsequence(DisplayName.ToLowerInvariant()) ||
+                   searchLower.IsSubsequence(Settings.className.ToLowerInvariant()) ||
+                   searchLower.IsSubsequence(Settings.sheetID.ToLowerInvariant());
         }
     }
 }
