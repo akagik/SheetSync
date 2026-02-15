@@ -20,11 +20,16 @@
         Debug.Log("Convert: #" + sValue + "#");
 #endif
             object value = null;
+
+            // スプレッドシートの書式設定で桁区切りカンマ（例: "1,200"）が含まれる場合があるため、
+            // 数値型のパース前にカンマを除去する.
+            string numericValue = sValue.Replace(",", "");
+
             // 型に応じて string を変換する.
             if (t == typeof(int))
             {
                 int intValue;
-                if (int.TryParse(sValue, out intValue))
+                if (int.TryParse(numericValue, out intValue))
                 {
                     value = intValue;
                 }
@@ -38,7 +43,7 @@
             else if (t == typeof(float))
             {
                 float floatValue;
-                if (float.TryParse(sValue, out floatValue))
+                if (float.TryParse(numericValue, out floatValue))
                 {
                     value = floatValue;
                 }
@@ -46,7 +51,7 @@
             else if (t == typeof(double))
             {
                 double doubleValue;
-                if (double.TryParse(sValue, out doubleValue))
+                if (double.TryParse(numericValue, out doubleValue))
                 {
                     value = doubleValue;
                 }
@@ -54,7 +59,7 @@
             else if (t == typeof(long))
             {
                 long longValue;
-                if (long.TryParse(sValue, out longValue))
+                if (long.TryParse(numericValue, out longValue))
                 {
                     value = longValue;
                 }

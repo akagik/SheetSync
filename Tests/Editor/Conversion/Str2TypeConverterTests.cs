@@ -282,9 +282,49 @@ namespace SheetSync.Tests
         {
             // Arrange & Act
             var result = Str2TypeConverter.Convert(typeof(HumanType), "InvalidType");
-            
+
             // Assert
             Assert.IsNull(result);
+        }
+
+        [Test]
+        public void ConvertInt_WithThousandsSeparator_ReturnsCorrectValue()
+        {
+            // Arrange & Act - スプレッドシートの桁区切りカンマ対応
+            var result = Str2TypeConverter.Convert(typeof(int), "1,200");
+
+            // Assert
+            Assert.AreEqual(1200, result);
+        }
+
+        [Test]
+        public void ConvertInt_WithLargeThousandsSeparator_ReturnsCorrectValue()
+        {
+            // Arrange & Act
+            var result = Str2TypeConverter.Convert(typeof(int), "1,000,000");
+
+            // Assert
+            Assert.AreEqual(1000000, result);
+        }
+
+        [Test]
+        public void ConvertFloat_WithThousandsSeparator_ReturnsCorrectValue()
+        {
+            // Arrange & Act
+            var result = Str2TypeConverter.Convert(typeof(float), "1,234.56");
+
+            // Assert
+            Assert.AreEqual(1234.56f, result);
+        }
+
+        [Test]
+        public void ConvertLong_WithThousandsSeparator_ReturnsCorrectValue()
+        {
+            // Arrange & Act
+            var result = Str2TypeConverter.Convert(typeof(long), "1,000,000,000");
+
+            // Assert
+            Assert.AreEqual(1000000000L, result);
         }
     }
 }
