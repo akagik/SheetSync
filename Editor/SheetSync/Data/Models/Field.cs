@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace SheetSync
 {
-    [SerializeField]
+    [Serializable]
     public class Field
     {
         public string fieldName = "";
