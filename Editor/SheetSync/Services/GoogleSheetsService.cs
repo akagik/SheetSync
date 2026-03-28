@@ -127,6 +127,8 @@ namespace SheetSync
                 // データを取得
                 var range = $"{sheetName}!A:ZZ"; // 全範囲を取得
                 var request = service.Spreadsheets.Values.Get(sheet.SheetId, range);
+                // フォーマットによる値の変化を避けるため、生の値を取得する
+                request.ValueRenderOption = SpreadsheetsResource.ValuesResource.GetRequest.ValueRenderOptionEnum.UNFORMATTEDVALUE;
                 var response = await request.ExecuteAsync();
                 
                 if (response.Values == null || response.Values.Count == 0)
